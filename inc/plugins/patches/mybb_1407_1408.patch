@@ -1,0 +1,723 @@
+diff -ru mybb_old/admin/inc/functions_view_manager.php mybb_new/admin/inc/functions_view_manager.php
+--- mybb_old/admin/inc/functions_view_manager.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/inc/functions_view_manager.php	2009-06-26 07:26:39.000000000 +0200
+@@ -635,6 +635,8 @@
+ 	if($create == true)
+ 	{
+ 		$updated_admin['uid'] = $mybb->user['uid'];
++		$updated_admin['notes'] = '';
++		$updated_admin['permissions'] = '';
+ 		$db->insert_query("adminoptions", $updated_admin);
+ 	}
+ 	else
+diff -ru mybb_old/admin/modules/config/plugins.php mybb_new/admin/modules/config/plugins.php
+--- mybb_old/admin/modules/config/plugins.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/config/plugins.php	2009-06-26 07:26:39.000000000 +0200
+@@ -29,6 +29,7 @@
+ 	
+ 	if($plugins_list)
+ 	{
++		$active_hooks = $plugins->hooks;
+ 		foreach($plugins_list as $plugin_file)
+ 		{
+ 			require_once MYBB_ROOT."inc/plugins/".$plugin_file;
+@@ -47,6 +48,7 @@
+ 				$names[$plugininfo['guid']] = array('name' => $plugininfo['name'], 'version' => $plugininfo['version']);
+ 			}
+ 		}
++		$plugins->hooks = $active_hooks;
+ 	}
+ 	
+ 	if(empty($info))
+diff -ru mybb_old/admin/modules/config/spiders.php mybb_new/admin/modules/config/spiders.php
+--- mybb_old/admin/modules/config/spiders.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/config/spiders.php	2009-06-26 07:26:39.000000000 +0200
+@@ -87,7 +87,7 @@
+ 	
+ 	$languages = array('' => $lang->use_board_default);
+ 	$languages = array_merge($languages, $lang->get_languages());
+-	$form_container->output_row($lang->language, $lang->language_desc, $form->generate_select_box("language", $languages, $mybb->input['language'], array("id" => "language")), 'language');
++	$form_container->output_row($lang->language_str, $lang->language_desc, $form->generate_select_box("language", $languages, $mybb->input['language'], array("id" => "language")), 'language');
+ 	
+ 	$form_container->output_row($lang->theme, $lang->theme_desc, build_theme_select("theme", $mybb->input['theme'], 0, "", 1));
+ 
+@@ -230,7 +230,7 @@
+ 	
+ 	$languages = array('' => $lang->use_board_default);
+ 	$languages = array_merge($languages, $lang->get_languages());
+-	$form_container->output_row($lang->language, $lang->language_desc, $form->generate_select_box("language", $languages, $spider_data['language'], array("id" => "language")), 'language');
++	$form_container->output_row($lang->language_str, $lang->language_desc, $form->generate_select_box("language", $languages, $spider_data['language'], array("id" => "language")), 'language');
+ 
+ 	$form_container->output_row($lang->theme, $lang->theme_desc, build_theme_select("theme", $spider_data['theme'], 0, "", 1));
+ 
+diff -ru mybb_old/admin/modules/forum/management.php mybb_new/admin/modules/forum/management.php
+--- mybb_old/admin/modules/forum/management.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/forum/management.php	2009-06-26 07:26:44.000000000 +0200
+@@ -1153,7 +1153,6 @@
+ 			
+ 			$canview = $permissions['canview'];
+ 			$canpostthreads = $permissions['canpostthreads'];
+-			$canpostreplies = $permissions['canpostreplies'];
+ 			$canpostpolls = $permissions['canpostpolls'];
+ 			$canpostattachments = $permissions['canpostattachments'];
+ 			$canpostreplies = $permissions['canpostreplys'];
+diff -ru mybb_old/admin/modules/style/templates.php mybb_new/admin/modules/style/templates.php
+--- mybb_old/admin/modules/style/templates.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/style/templates.php	2009-06-26 07:26:49.000000000 +0200
+@@ -846,7 +846,7 @@
+ 							$template['pretty_title'] = "<span style=\"color: blue;\">{$template['title']}</span>";
+ 						}
+ 											
+-						$table->construct_cell("<span style=\"padding: 20px;\"><a href=\"index.php?module=style/templates&amp;action=edit_template&amp;title=".urlencode($template['title'])."&amp;sid={$sid}\">{$template['pretty_title']}</a></span>", array("width" => "85%"));
++						$table->construct_cell("<span style=\"padding: 20px;\">{$template['pretty_title']}</span>", array("width" => "85%"));
+ 						$table->construct_cell($popup->fetch(), array("class" => "align_center"));
+ 						
+ 						$table->construct_row();
+diff -ru mybb_old/admin/modules/tools/adminlog.php mybb_new/admin/modules/tools/adminlog.php
+--- mybb_old/admin/modules/tools/adminlog.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/tools/adminlog.php	2009-06-26 07:26:47.000000000 +0200
+@@ -138,6 +138,12 @@
+ 	{
+ 		$where .= " AND l.uid='".intval($mybb->input['uid'])."'";
+ 	}
++	
++	// Searching for entries in a specific module
++	if($mybb->input['filter_module'])
++	{
++		$where .= " AND module='".$db->escape_string($mybb->input['filter_module'])."'";
++	}
+ 
+ 	// Order?
+ 	switch($mybb->input['sortby'])
+@@ -236,7 +242,7 @@
+ 	// Do we need to construct the pagination?
+ 	if($rescount > $perpage)
+ 	{
+-		echo draw_admin_pagination($pagecnt, $perpage, $rescount, "index.php?module=tools/adminlog&amp;perpage=$perpage&amp;uid={$mybb->input['uid']}&amp;fid={$mybb->input['fid']}&amp;sortby={$mybb->input['sortby']}&amp;order={$order}")."<br />";
++		echo draw_admin_pagination($pagecnt, $perpage, $rescount, "index.php?module=tools/adminlog&amp;perpage=$perpage&amp;uid={$mybb->input['uid']}&amp;fid={$mybb->input['fid']}&amp;sortby={$mybb->input['sortby']}&amp;order={$order}&amp;filter_module=".htmlspecialchars_uni($mybb->input['filter_module']))."<br />";
+ 	}
+ 	
+ 	// Fetch filter options
+diff -ru mybb_old/admin/modules/user/admin_permissions.php mybb_new/admin/modules/user/admin_permissions.php
+--- mybb_old/admin/modules/user/admin_permissions.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/user/admin_permissions.php	2009-06-26 07:26:48.000000000 +0200
+@@ -139,7 +139,13 @@
+ 		}
+ 		else
+ 		{
+-			$db->insert_query("adminoptions", array('uid' => intval($mybb->input['uid']), 'permissions' => $db->escape_string(serialize($mybb->input['permissions']))));
++			$insert_array = array(
++				"uid" => intval($mybb->input['uid']),
++				"permissions" => $db->escape_string(serialize($mybb->input['permissions'])),
++				"notes" => '',
++				"defaultviews" => ''
++			);
++			$db->insert_query("adminoptions", $insert_array);
+ 		}
+ 		
+ 		$plugins->run_hooks("admin_user_admin_permissions_edit_commit");
+diff -ru mybb_old/admin/modules/user/users.php mybb_new/admin/modules/user/users.php
+--- mybb_old/admin/modules/user/users.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/admin/modules/user/users.php	2009-06-26 07:26:53.000000000 +0200
+@@ -924,7 +924,7 @@
+ 	}
+ 	else
+ 	{
+-		$percent_posts = round($memprofile['postnum']*100/$posts, 2);;
++		$percent_posts = round($user['postnum']*100/$posts, 2);
+ 	}
+ 
+ 	$user_permissions = user_permissions($user['uid']);
+@@ -1500,12 +1500,25 @@
+ 			$db->update_query("pollvotes", $uid_update, "uid='{$source_user['uid']}'");
+ 			$db->update_query("posts", $uid_update, "uid='{$source_user['uid']}'");
+ 			$db->update_query("privatemessages", $uid_update, "uid='{$source_user['uid']}'");
+-			$db->update_query("reputation", $uid_update, "uid='{$source_user['uid']}'");
+-			$db->update_query("reputation", array('adduid' => $destination_user['uid']), "adduid='{$source_user['uid']}'");
+ 			$db->update_query("threadratings", $uid_update, "uid='{$source_user['uid']}'");
+ 			$db->update_query("threads", $uid_update, "uid='{$source_user['uid']}'");
+ 			$db->delete_query("sessions", "uid='{$source_user['uid']}'");
+-			$db->delete_query("reputation", "uid='{$destination_user['uid']}' AND adduid='{$destination_user['uid']}'");
++			
++			// Merging Reputation
++			$query = $db->simple_select("reputation", "rid, uid", "adduid = '{$source_user['uid']}' OR adduid = '{$uid_update['uid']}'", array("order_by" => "dateline", "order_dir" => "DESC"));
++			while($result = $db->fetch_array($query))
++			{
++				// Let's try and remove old one if it's the same uid
++				if($result['uid'] == $last['uid'])
++				{
++					$db->delete_query("reputation", "rid = '".$result['rid']."'");
++					$db->update_query("reputation", array("adduid" => $uid_update['uid']), "rid = '".$last['rid']."'");
++				}
++				$last = array(
++					"rid" => $result['rid'],
++					"uid" => $result['uid']
++				);
++			}
+ 			
+ 			// Calculate new reputation
+ 			$query = $db->simple_select("reputation", "SUM(reputation) as total_rep", "uid='{$destination_user['uid']}'");
+@@ -1807,6 +1820,7 @@
+ 	// If we have any error messages, show them
+ 	if($errors)
+ 	{
++		echo "<div style=\"display: inline; float: right;\">{$admin_view['popup']}</div><br />\n";
+ 		$page->output_inline_error($errors);
+ 	}
+ 
+@@ -1875,6 +1889,12 @@
+ 	{
+ 		update_admin_session('last_users_url', str_replace("&amp;", "&", $view['url']));
+ 	}
++	
++	// Do we not have any views?
++	if(empty($view))
++	{
++		return false;
++	}
+ 
+ 	$table = new Table;
+ 
+diff -ru mybb_old/announcements.php mybb_new/announcements.php
+--- mybb_old/announcements.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/announcements.php	2009-06-26 07:26:32.000000000 +0200
+@@ -53,6 +53,9 @@
+ 	{
+ 		error_no_permission();
+ 	}
++	
++	// Check if this forum is password protected and we have a valid password
++	check_forum_password($forum['fid']);
+ }
+ add_breadcrumb($lang->nav_announcements);
+ 
+diff -ru mybb_old/archive/index.php mybb_new/archive/index.php
+--- mybb_old/archive/index.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/archive/index.php	2009-06-26 07:26:56.000000000 +0200
+@@ -134,11 +134,14 @@
+ 
+ 		$pids = implode(",", $pids);
+ 
+-		// Build attachments cache
+-		$query = $db->simple_select("attachments", "*", "pid IN ({$pids})");
+-		while($attachment = $db->fetch_array($query))
++		if($pids)
+ 		{
+-			$acache[$attachment['pid']][$attachment['aid']] = $attachment;
++			// Build attachments cache
++			$query = $db->simple_select("attachments", "*", "pid IN ({$pids})");
++			while($attachment = $db->fetch_array($query))
++			{
++				$acache[$attachment['pid']][$attachment['aid']] = $attachment;
++			}
+ 		}
+ 
+ 		// Start fetching the posts
+@@ -316,6 +319,7 @@
+ 				echo "<ol>\n";
+ 				while($sticky = $db->fetch_array($query))
+ 				{
++					$sticky['subject'] = htmlspecialchars_uni($parser->parse_badwords($sticky['subject']));
+ 					if($sticky['replies'] != 1)
+ 					{
+ 						$lang_reply_text = $lang->archive_replies;
+diff -ru mybb_old/attachment.php mybb_new/attachment.php
+--- mybb_old/attachment.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/attachment.php	2009-06-26 17:29:56.000000000 +0200
+@@ -113,13 +113,31 @@
+ {
+ 	$ext = get_extension($attachment['filename']);
+ 	
++	switch($attachment['filetype'])
++	{
++		case "application/pdf":
++		case "image/bmp":
++		case "image/gif":
++		case "image/jpeg":
++		case "image/pjpeg":
++		case "image/png":
++		case "text/plain":
++			header("Content-type: {$attachment['filetype']}");
++			$disposition = "inline";
++			break;
++
++		default:
++			header("Content-type: application/force-download");
++			$disposition = "attachment";
++	}
++
+ 	if(strpos(strtolower($_SERVER['HTTP_USER_AGENT']), "msie") !== false)
+ 	{
+ 		header("Content-disposition: attachment; filename=\"{$attachment['filename']}\"");
+ 	}
+ 	else
+ 	{
+-		header("Content-disposition: inline; filename=\"{$attachment['filename']}\"");
++		header("Content-disposition: {$disposition}; filename=\"{$attachment['filename']}\"");
+ 	}
+ 	
+ 	if(strpos(strtolower($_SERVER['HTTP_USER_AGENT']), "msie 6.0") !== false)
+@@ -127,7 +145,6 @@
+ 		header("Expires: -1");
+ 	}
+ 	
+-	header("Content-type: {$attachment['filetype']}");
+ 	header("Content-length: {$attachment['filesize']}");
+ 	header("Content-range: bytes=0-".($attachment['filesize']-1)."/".$attachment['filesize']); 
+ 	echo file_get_contents($mybb->settings['uploadspath']."/".$attachment['attachname']);
+diff -ru mybb_old/global.php mybb_new/global.php
+--- mybb_old/global.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/global.php	2009-06-26 07:26:27.000000000 +0200
+@@ -413,15 +413,20 @@
+ 	if($pm['fromuid'] == 0)
+ 	{
+ 		$pm['fromusername'] = 'MyBB Engine';
++		$user_text = $pm['fromusername'];
+ 	}
+-	
++	else
++	{
++		$user_text = build_profile_link($pm['fromusername'], $pm['fromuid']);
++	}
++
+ 	if($mybb->user['pms_unread'] == 1)
+ 	{
+-		$privatemessage_text = $lang->sprintf($lang->newpm_notice_one, get_profile_link($pm['fromuid']), htmlspecialchars_uni($pm['fromusername']), $pm['pmid'], htmlspecialchars_uni($pm['subject']));
++		$privatemessage_text = $lang->sprintf($lang->newpm_notice_one, $user_text, $pm['pmid'], htmlspecialchars_uni($pm['subject']));
+ 	}
+ 	else
+ 	{
+-		$privatemessage_text = $lang->sprintf($lang->newpm_notice_multiple, $mybb->user['pms_unread'], get_profile_link($pm['fromuid']), htmlspecialchars_uni($pm['fromusername']), $pm['pmid'], htmlspecialchars_uni($pm['subject']));
++		$privatemessage_text = $lang->sprintf($lang->newpm_notice_multiple, $mybb->user['pms_unread'], $user_text, $pm['pmid'], htmlspecialchars_uni($pm['subject']));
+ 	}
+ 	eval("\$pm_notice = \"".$templates->get("global_pm_alert")."\";");
+ }
+diff -ru mybb_old/inc/cachehandlers/memcache.php mybb_new/inc/cachehandlers/memcache.php
+--- mybb_old/inc/cachehandlers/memcache.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/cachehandlers/memcache.php	2009-06-26 07:27:14.000000000 +0200
+@@ -63,7 +63,7 @@
+ 
+ 		if(!$mybb->config['memcache_host'])
+ 		{
+-			die("Plesse configure the memcache settings in inc/config.php before attempting to use this cache handler");
++			die("Please configure the memcache settings in inc/config.php before attempting to use this cache handler");
+ 		}
+ 
+ 		if(!$mybb->config['memcache_port'])
+@@ -143,4 +143,5 @@
+ 		
+ 		return $lang->na;
+ 	}
+-}
+\ No newline at end of file
++}
++?>
+\ No newline at end of file
+diff -ru mybb_old/inc/class_core.php mybb_new/inc/class_core.php
+--- mybb_old/inc/class_core.php	2009-06-15 05:16:31.000000000 +0200
++++ mybb_new/inc/class_core.php	2009-06-26 07:27:04.000000000 +0200
+@@ -15,14 +15,14 @@
+ 	 *
+ 	 * @var string
+ 	 */
+-	var $version = "1.4.7";
++	var $version = "1.4.8";
+ 	
+ 	/**
+ 	 * The version code of MyBB we're running.
+ 	 *
+ 	 * @var integer
+ 	 */
+-	var $version_code = 1407;
++	var $version_code = 1408;
+ 	
+ 	/**
+ 	 * The current working directory.
+diff -ru mybb_old/inc/class_language.php mybb_new/inc/class_language.php
+--- mybb_old/inc/class_language.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/class_language.php	2009-06-26 07:27:01.000000000 +0200
+@@ -148,11 +148,14 @@
+ 			}
+ 		}
+ 		
++		// We must unite and protect our language variables!
++		$lang_keys_ignore = array('language', 'path', 'settings');
++		
+ 		if(is_array($l))
+ 		{
+ 			foreach($l as $key => $val)
+ 			{
+-				if(empty($this->$key) || $this->$key != $val)
++				if((empty($this->$key) || $this->$key != $val) && !in_array($key, $lang_keys_ignore))
+ 				{
+ 					$this->$key = $val;
+ 				}
+diff -ru mybb_old/inc/class_moderation.php mybb_new/inc/class_moderation.php
+--- mybb_old/inc/class_moderation.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/class_moderation.php	2009-06-26 07:27:03.000000000 +0200
+@@ -1026,7 +1026,7 @@
+ 		$db->update_query("threadsubscriptions", $sqlarray, "tid='{$mergetid}'");
+ 		update_first_post($tid);
+ 
+-		$arguments = array("mergetid" => $tid, "tid" => $tid, "subject" => $subject);
++		$arguments = array("mergetid" => $mergetid, "tid" => $tid, "subject" => $subject);
+ 		$plugins->run_hooks("class_moderation_merge_threads", $arguments);
+ 
+ 		$this->delete_thread($mergetid);
+diff -ru mybb_old/inc/datahandlers/pm.php mybb_new/inc/datahandlers/pm.php
+--- mybb_old/inc/datahandlers/pm.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/datahandlers/pm.php	2009-06-26 07:27:17.000000000 +0200
+@@ -492,7 +492,7 @@
+ 		$recipient_list = serialize($recipient_list);
+ 
+ 		$this->pm_insert_data = array(
+-			'fromid' => $pm['sender']['uid'],
++			'fromid' => intval($pm['sender']['uid']),
+ 			'folder' => $pm['folder'],
+ 			'subject' => $db->escape_string($pm['subject']),
+ 			'icon' => intval($pm['icon']),
+@@ -507,7 +507,7 @@
+ 		);
+ 
+ 		// Check if we're updating a draft or not.
+-		$query = $db->simple_select("privatemessages", "pmid", "folder='3' AND uid='{$pm['sender']['uid']}' AND pmid='{$pm['pmid']}'");
++		$query = $db->simple_select("privatemessages", "pmid", "folder='3' AND uid='".intval($pm['sender']['uid'])."' AND pmid='{$pm['pmid']}'");
+ 		$draftcheck = $db->fetch_array($query);
+ 
+ 		// This PM was previously a draft
+@@ -627,7 +627,7 @@
+ 			{
+ 				$this->pm_insert_data['toid'] = 0;
+ 			}
+-			$this->pm_insert_data['uid'] = $pm['sender']['uid'];
++			$this->pm_insert_data['uid'] = intval($pm['sender']['uid']);
+ 			$this->pm_insert_data['folder'] = 2;
+ 			$this->pm_insert_data['status'] = 1;
+ 			$this->pm_insert_data['receipt'] = 0;
+diff -ru mybb_old/inc/datahandlers/post.php mybb_new/inc/datahandlers/post.php
+--- mybb_old/inc/datahandlers/post.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/datahandlers/post.php	2009-06-26 07:27:19.000000000 +0200
+@@ -1359,7 +1359,7 @@
+ 		else if($visible == 0)
+ 		{
+ 			update_thread_data($this->tid);
+-			update_thread_counters($thread['tid'], array("replies" => 0, "unapprovedposts" => 1));
++			update_thread_counters($this->tid, array("replies" => 0, "unapprovedposts" => 1));
+ 			update_forum_counters($thread['fid'], array("unapprovedthreads" => "+1", "unapprovedposts" => "+1"));
+ 		}
+ 		
+diff -ru mybb_old/inc/datahandlers/user.php mybb_new/inc/datahandlers/user.php
+--- mybb_old/inc/datahandlers/user.php	2009-06-15 05:16:52.000000000 +0200
++++ mybb_new/inc/datahandlers/user.php	2009-06-26 07:27:21.000000000 +0200
+@@ -220,6 +220,7 @@
+ 		$user = &$this->data;
+ 		return true;
+ 	}
++	
+ 	/**
+ 	* Verifies if an email address is valid or not.
+ 	*
+@@ -354,21 +355,18 @@
+ 		$birthday['year'] = intval($birthday['year']);
+ 
+ 		// Error if a day and month exists, and the birthday day and range is not in range
+-		if($birthday['day'] && $birthday['month'])
++		if($birthday['day'] < 1 || $birthday['day'] > 31 || $birthday['month'] < 1 || $birthday['month'] > 12 || ($birthday['month'] == 2 && $birthday['day'] > 29))
+ 		{
+-			if($birthday['day'] < 1 || $birthday['day'] > 31 || $birthday['month'] < 1 || $birthday['month'] > 12 || ($birthday['month'] == 2 && $birthday['day'] > 29))
+-			{
+-				$this->set_error("invalid_birthday");
+-				return false;
+-			}
++			$this->set_error("invalid_birthday");
++			return false;
++		}
+ 
+-			// Check if the day actually exists.
+-			$months = get_bdays($birthday['year']);
+-			if($birthday['day'] > $months[$birthday['month']-1])
+-			{
+-				$this->set_error("invalid_birthday");
+-				return false;
+-			}
++		// Check if the day actually exists.
++		$months = get_bdays($birthday['year']);
++		if($birthday['day'] > $months[$birthday['month']-1])
++		{
++			$this->set_error("invalid_birthday");
++			return false;
+ 		}
+ 
+ 		// Error if a year exists and the year is out of range
+diff -ru mybb_old/inc/functions.php mybb_new/inc/functions.php
+--- mybb_old/inc/functions.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/functions.php	2009-06-26 07:27:15.000000000 +0200
+@@ -2886,7 +2886,7 @@
+ 				}
+ 
+ 				$navsize = count($navbits);
+-				$navbits[$navsize]['name'] = $forumnav['name'];
++				$navbits[$navsize]['name'] = htmlspecialchars_uni($forumnav['name']);
+ 
+ 				if(IN_ARCHIVE == 1)
+ 				{
+diff -ru mybb_old/inc/functions_search.php mybb_new/inc/functions_search.php
+--- mybb_old/inc/functions_search.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/inc/functions_search.php	2009-06-26 07:27:07.000000000 +0200
+@@ -171,6 +171,17 @@
+ 	$keywords = str_replace("*", "%", $keywords);
+ 	$keywords = preg_replace("#([\[\]\|\.\,:'])#s", " ", $keywords);
+ 	$keywords = preg_replace("#\s+#s", " ", $keywords);
++
++	// Search for "and" or "or" and remove if it's at the beginning
++	if(my_strpos($keywords, "or") !== false && my_strpos($keywords, "or") == 0)
++	{
++		$keywords = substr_replace($keywords, "", 0, 2);
++	}
++	if(my_strpos($keywords, "and") !== false && my_strpos($keywords, "and") == 0)
++	{
++		$keywords = substr_replace($keywords, "", 0, 3);
++	}
++
+ 	return trim($keywords);
+ }
+ 
+diff -ru mybb_old/inc/languages/english/admin/config_spiders.lang.php mybb_new/inc/languages/english/admin/config_spiders.lang.php
+--- mybb_old/inc/languages/english/admin/config_spiders.lang.php	2009-06-15 05:11:50.000000000 +0200
++++ mybb_new/inc/languages/english/admin/config_spiders.lang.php	2009-06-26 07:27:30.000000000 +0200
+@@ -22,7 +22,7 @@
+ $l['name_desc'] = "Enter the name of this bot which you want to identify it by";
+ $l['user_agent'] = "User Agent String";
+ $l['user_agent_desc'] = "Enter the string which will be matched against the bots user agent (partial matches are accepted)";
+-$l['language'] = "Language";
++$l['language_str'] = "Language";
+ $l['language_desc'] = "Select the language pack the bot will use when viewing the board.";
+ $l['theme'] = "Theme";
+ $l['theme_desc'] = "Select the theme the bot will use when viewing the board.";
+diff -ru mybb_old/inc/languages/english/global.lang.php mybb_new/inc/languages/english/global.lang.php
+--- mybb_old/inc/languages/english/global.lang.php	2009-06-15 05:11:50.000000000 +0200
++++ mybb_new/inc/languages/english/global.lang.php	2009-06-26 07:27:27.000000000 +0200
+@@ -289,8 +289,8 @@
+ $l['with_trout'] = "around a bit with a large trout.";
+ 
+ $l['quickdelete_confirm'] = "Are you sure you want to delete this post?";
+-$l['newpm_notice_one'] = "<strong>You have one unread private message</strong> from <a href=\"{1}\">{2}</a> titled <a href=\"private.php?action=read&amp;pmid={3}\" style=\"font-weight: bold;\">{4}</a>";
+-$l['newpm_notice_multiple'] = "<strong>You have {1} unread private messages.</strong> The most recent is from <a href=\"{2}\">{3}</a> titled <a href=\"private.php?action=read&amp;pmid={4}\" style=\"font-weight: bold;\">{5}</a>";
++$l['newpm_notice_one'] = "<strong>You have one unread private message</strong> from {1} titled <a href=\"private.php?action=read&amp;pmid={2}\" style=\"font-weight: bold;\">{3}</a>";
++$l['newpm_notice_multiple'] = "<strong>You have {1} unread private messages.</strong> The most recent is from {2} titled <a href=\"private.php?action=read&amp;pmid={3}\" style=\"font-weight: bold;\">{4}</a>";
+ $l['deleteevent_confirm'] = "Are you sure you want to delete this event?";
+ $l['removeattach_confirm'] = "Are you sure you want to remove the selected attachment from this post?";
+ 
+diff -ru mybb_old/inc/languages/english.php mybb_new/inc/languages/english.php
+--- mybb_old/inc/languages/english.php	2009-06-15 05:11:50.000000000 +0200
++++ mybb_new/inc/languages/english.php	2009-06-26 07:27:24.000000000 +0200
+@@ -16,7 +16,7 @@
+ $langinfo['website'] = "http://www.mybboard.net/";
+ 
+ // Compatible version of MyBB
+-$langinfo['version'] = "1406";
++$langinfo['version'] = "1408";
+ 
+ // Sets if the translation includes the Admin CP (1 = yes, 0 = no)
+ $langinfo['admin'] = 1;
+diff -ru mybb_old/install/resources/mybb_theme.xml mybb_new/install/resources/mybb_theme.xml
+--- mybb_old/install/resources/mybb_theme.xml	2009-06-15 05:11:50.000000000 +0200
++++ mybb_new/install/resources/mybb_theme.xml	2009-06-26 07:28:19.000000000 +0200
+@@ -1438,9 +1438,10 @@
+ 					</table>
+ 					{$multipage}
+ 					<br />]]></template>
+-		<template name="modcp_ipsearch_result" version="1400"><![CDATA[<tr>
++		<template name="modcp_ipsearch_result" version="1408"><![CDATA[<tr>
+ <td class="{$trow}" align="center">{$ip}</td>
+ <td class="{$trow}">{$subject}</td>
++</tr>
+ ]]></template>
+ 		<template name="modcp_ipsearch_noresults" version="1400"><![CDATA[<tr>
+ 	<td class="trow1" align="center" colspan="2">{$lang->error_no_results}</td>
+@@ -4482,9 +4483,9 @@
+ 		<td width="130" align="center"><span class="smalltext"><strong>{$lang->pmspaceused}</strong></span></td>
+ 	</tr>
+ </table></span>]]></template>
+-		<template name="forumdisplay_announcements_announcement" version="1400"><![CDATA[<tr>
+-<td align="center" class="{$bgcolor}"><img src="{$theme['imgdir']}/{$folder}.gif" alt=""/></td>
+-<td align="center" class="{$bgcolor}">&nbsp;</td>
++		<template name="forumdisplay_announcements_announcement" version="1408"><![CDATA[<tr>
++<td align="center" class="{$bgcolor}" width="2%"><img src="{$theme['imgdir']}/{$folder}.gif" alt=""/></td>
++<td align="center" class="{$bgcolor}" width="2%">&nbsp;</td>
+ <td class="{$bgcolor}">
+ 	<a href="{$announcement['announcementlink']}"{$new_class}>{$announcement['subject']}</a>
+ 	<div class="author smalltext">{$announcement['profilelink']}</div>
+diff -ru mybb_old/install/resources/upgrade14.php mybb_new/install/resources/upgrade14.php
+--- mybb_old/install/resources/upgrade14.php	2009-06-15 05:11:50.000000000 +0200
++++ mybb_new/install/resources/upgrade14.php	2009-06-26 07:27:40.000000000 +0200
+@@ -216,4 +216,4 @@
+ }
+ 
+ 
+-?>
++?>
+\ No newline at end of file
+Only in mybb_new/install/resources: upgrade16.php
+diff -ru mybb_old/member.php mybb_new/member.php
+--- mybb_old/member.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/member.php	2009-06-26 07:26:31.000000000 +0200
+@@ -1709,7 +1709,7 @@
+ 	{
+ 		$query = $db->simple_select("maillogs", "COUNT(*) AS sent_count", "fromuid='{$mybb->user['uid']}' AND dateline >= '".(TIME_NOW - (60*60*24))."'");
+ 		$sent_count = $db->fetch_field($query, "sent_count");
+-		if($sent_count > $mybb->usergroup['maxemails'])
++		if($sent_count >= $mybb->usergroup['maxemails'])
+ 		{
+ 			$lang->error_max_emails_day = $lang->sprintf($lang->error_max_emails_day, $mybb->usergroup['maxemails']);
+ 			error($lang->error_max_emails_day);
+diff -ru mybb_old/report.php mybb_new/report.php
+--- mybb_old/report.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/report.php	2009-06-26 07:26:29.000000000 +0200
+@@ -94,7 +94,7 @@
+ 					$query = $db->query("
+ 						SELECT u.username, u.email, u.receivepms, u.uid
+ 						FROM ".TABLE_PREFIX."users u
+-						LEFT JOIN ".TABLE_PREFIX."usergroups g ON (((CONCAT(','|| u.additionalgroups|| ',') LIKE CONCAT('%,'|| g.gid|| ',%')) OR u.usergroup = g.gid))
++						LEFT JOIN ".TABLE_PREFIX."usergroups g ON (((','|| u.additionalgroups|| ',' LIKE '%,'|| g.gid|| ',%') OR u.usergroup = g.gid))
+ 						WHERE (g.cancp=1 OR g.issupermod=1)
+ 					");
+ 					break;
+@@ -135,7 +135,7 @@
+ 				"subject" => $emailsubject,
+ 				"message" => $emailmessage,
+ 				"icon" => 0,
+-				"fromid" => 0,
++				"fromid" => $mybb->user['uid'],
+ 				"toid" => $pm_recipients
+ 			);
+ 
+diff -ru mybb_old/search.php mybb_new/search.php
+--- mybb_old/search.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/search.php	2009-06-26 17:17:46.000000000 +0200
+@@ -629,19 +629,26 @@
+ 				$test_moderated_forums[$forum['fid']] = $forum['fid'];
+ 			}
+ 			$p_unapproved_where = "visible >= 0";
+-			$t_unapproved_where = "visible < 0 OR fid NOT IN ({$moderated_forums})";
++			$t_unapproved_where = "visible < 0 AND fid NOT IN ({$moderated_forums})";
+ 		}
+ 		else
+ 		{
+ 			// Normal users
+ 			$p_unapproved_where = 'visible=1';
+ 			$t_unapproved_where = 'visible < 1';
+-		}	
++		}
++
++		$post_cache_options = array('LIMIT' => intval($mybb->settings['searchhardlimit']));
++		if(strpos($sortfield, 'p.') !== false)
++		{
++			$post_cache_options['order_by'] = str_replace('p.', '', $sortfield);
++			$post_cache_options['order_dir'] = $order;
++		}
+ 
+ 		$tids = array();
+ 		$pids = array();
+ 		// Make sure the posts we're viewing we have permission to view.
+-		$query = $db->simple_select("posts", "pid, tid", "pid IN(".$db->escape_string($search['posts']).") AND {$p_unapproved_where} {$limitsql}");
++		$query = $db->simple_select("posts", "pid, tid", "pid IN(".$db->escape_string($search['posts']).") AND {$p_unapproved_where}", $post_cache_options);
+ 		while($post = $db->fetch_array($query))
+ 		{
+ 			$pids[$post['pid']] = $post['tid'];
+@@ -933,9 +940,15 @@
+ 		$where_sql .= " AND fid NOT IN ($inactiveforums)";
+ 	}
+ 	
++	$options = array(
++		'LIMIT' => intval($mybb->settings['searchhardlimit']),
++		'order_by' => 'dateline',
++		'order_dir' => 'DESC'
++	);
++
+ 	$pids = '';
+ 	$comma = '';
+-	$query = $db->simple_select("posts", "pid", "{$where_sql} {$limitsql}");
++	$query = $db->simple_select("posts", "pid", "{$where_sql}", $options);
+ 	while($pid = $db->fetch_field($query, "pid"))
+ 	{
+ 			$pids .= $comma.$pid;
+@@ -981,10 +994,16 @@
+ 	{
+ 		$where_sql .= " AND fid NOT IN ($inactiveforums)";
+ 	}
+-	
++
++	$options = array(
++		'LIMIT' => intval($mybb->settings['searchhardlimit']),
++		'order_by' => 'dateline',
++		'order_dir' => 'DESC'
++	);
++
+ 	$pids = '';
+ 	$comma = '';
+-	$query = $db->simple_select("posts", "pid", "{$where_sql} {$limitsql}");
++	$query = $db->simple_select("posts", "pid", "{$where_sql}", $options);
+ 	while($pid = $db->fetch_field($query, "pid"))
+ 	{
+ 			$pids .= $comma.$pid;
+@@ -1368,4 +1387,4 @@
+ 	output_page($search);
+ }
+ 
+-?>
++?>
+\ No newline at end of file
+diff -ru mybb_old/sendthread.php mybb_new/sendthread.php
+--- mybb_old/sendthread.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/sendthread.php	2009-06-26 07:26:34.000000000 +0200
+@@ -75,7 +75,7 @@
+ {
+ 	$query = $db->simple_select("maillogs", "COUNT(*) AS sent_count", "fromuid='{$mybb->user['uid']}' AND dateline >= '".(TIME_NOW - (60*60*24))."'");
+ 	$sent_count = $db->fetch_field($query, "sent_count");
+-	if($sent_count > $mybb->usergroup['maxemails'])
++	if($sent_count >= $mybb->usergroup['maxemails'])
+ 	{
+ 		$lang->error_max_emails_day = $lang->sprintf($lang->error_max_emails_day, $mybb->usergroup['maxemails']);
+ 		error($lang->error_max_emails_day);
+diff -ru mybb_old/showthread.php mybb_new/showthread.php
+--- mybb_old/showthread.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/showthread.php	2009-06-26 07:26:35.000000000 +0200
+@@ -407,7 +407,7 @@
+ 		}
+ 		else
+ 		{
+-			$edit_poll = "| <a href=\"polls.php?action=editpoll&amp;pid={$poll['pid']}\">{$lang->edit_poll}</a>";
++			$edit_poll = " | <a href=\"polls.php?action=editpoll&amp;pid={$poll['pid']}\">{$lang->edit_poll}</a>";
+ 		}
+ 
+ 		// Decide what poll status to show depending on the status of the poll and whether or not the user voted already.
+diff -ru mybb_old/syndication.php mybb_new/syndication.php
+--- mybb_old/syndication.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/syndication.php	2009-06-26 07:26:26.000000000 +0200
+@@ -33,7 +33,7 @@
+ {
+ 	$thread_limit = 50;
+ }
+-else if(!$thread_limit)
++else if(!$thread_limit || $thread_limit < 0)
+ {
+ 	$thread_limit = 20;
+ }
+diff -ru mybb_old/xmlhttp.php mybb_new/xmlhttp.php
+--- mybb_old/xmlhttp.php	2009-06-15 05:11:49.000000000 +0200
++++ mybb_new/xmlhttp.php	2009-06-26 07:26:33.000000000 +0200
+@@ -335,6 +335,13 @@
+ 			xmlhttp_error($lang->edit_time_limit);
+ 		}
+ 	}
++
++	// Forum is closed - no editing allowed (for anyone)
++	if($forum['open'] == 0)
++	{
++		xmlhttp_error($lang->no_permission_edit_post);
++	}
++
+ 	if($mybb->input['do'] == "get_post")
+ 	{
+ 		// Send our headers.

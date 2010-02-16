@@ -1,0 +1,19 @@
+diff -Naur mybb-original/captcha.php mybb-capitalize-captcha/captcha.php
+--- mybb-original/captcha.php	2009-06-26 06:22:11.000000000 +0200
++++ mybb-capitalize-captcha/captcha.php	2009-08-08 17:57:39.249835218 +0200
+@@ -33,7 +33,7 @@
+ {
+ 	$query = $db->simple_select("captcha", "*", "imagehash='".$db->escape_string(strval($mybb->input['imagehash']))."'", array("limit" => 1));
+ 	$regimage = $db->fetch_array($query);
+-	$imagestring = $regimage['imagestring'];
++	$imagestring = my_strtoupper($regimage['imagestring']);
+ }
+ else
+ {
+@@ -345,4 +345,4 @@
+ 	
+ 	return $gd_version;
+ }
+-?>
+\ No newline at end of file
++?>
