@@ -32,7 +32,7 @@ if(!defined('IN_MYBB'))
  */
 
 /* --- Defines: --- */
-define('MYBB_PATCHES', MYBB_ROOT.'inc/plugins/patches/');
+define('MYBB_PATCHES', MYBB_ROOT.'inc/patches/');
 
 /* --- Global Variables: --- */
 
