@@ -62,7 +62,7 @@ function patches_info()
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
         'version'       => '0.1',
         'guid'          => '',
-        'compatibility' => '14*'
+        'compatibility' => '16*',
     );
 }
 
