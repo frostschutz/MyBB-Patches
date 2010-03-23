@@ -104,7 +104,7 @@ function patches_install()
                               KEY (patch),
                               KEY (file, size, date),
                               PRIMARY KEY (hid)
-                          ) TYPE=MyISAM{$collation};');
+                          ) TYPE=MyISAM'.$collation.';');
     }
 }
 
