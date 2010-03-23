@@ -146,10 +146,10 @@ function patches_tabs_start($arguments)
 {
     global $mybb;
 
-    if($mybb->input['module'] == 'config/plugins')
+    if($mybb->input['module'] == 'config-plugins')
     {
         $arguments['patches'] = array('title' => 'Patches',
-                                      'link' => 'index.php?module=config/plugins&amp;action=patches',
+                                      'link' => 'index.php?module=config-plugins&amp;action=patches',
                                       'description' => 'This section allows you to manage available patches.');
     }
 }
@@ -163,13 +163,13 @@ function patches_output_tabs()
 
     $sub_tabs['plugins'] = array(
         'title' => $lang->plugins,
-        'link' => 'index.php?module=config/plugins',
+        'link' => 'index.php?module=config-plugins',
         'description' => $lang->plugins_desc
     );
 
     $sub_tabs['update_plugins'] = array(
         'title' => $lang->plugin_updates,
-        'link' => 'index.php?module=config/plugins&amp;action=check',
+        'link' => 'index.php?module=config-plugins&amp;action=check',
         'description' => $lang->plugin_updates_desc
     );
 
@@ -200,7 +200,7 @@ function patches_plugins_begin()
         return;
     }
 
-    $page->add_breadcrumb_item('Patches', 'index.php?module=config/plugins&amp;action=patches');
+    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
 
     $page->extra_header .= '
 <style type="text/css">
@@ -308,13 +308,13 @@ function patches_page()
 
         $urlpatch = urlencode($patch);
 
-        $table->construct_cell('<a href="index.php?module=config/plugins&amp;action=patches&amp;view='.$urlpatch.'">View</a>',
+        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;view='.$urlpatch.'">View</a>',
                                array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config/plugins&amp;action=patches&amp;check='.$urlpatch.'">Check</a>',
+        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;check='.$urlpatch.'">Check</a>',
                                array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config/plugins&amp;action=patches&amp;apply='.$urlpatch.'">Apply</a>',
+        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;apply='.$urlpatch.'">Apply</a>',
                                array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config/plugins&amp;action=patches&amp;revert='.$urlpatch.'">Revert</a>',
+        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;revert='.$urlpatch.'">Revert</a>',
                                array('class' => 'align_center', 'width' => 75));
         $table->construct_row();
     }
@@ -333,7 +333,7 @@ function patches_page_view()
 {
     global $mybb, $page;
 
-    $page->add_breadcrumb_item('View '.$mybb->input['view'], 'index.php?module=config/plugins&amp;action=patches&amp;view='.urlencode($mybb->input['view']));
+    $page->add_breadcrumb_item('View '.$mybb->input['view'], 'index.php?module=config-plugins&amp;action=patches&amp;view='.urlencode($mybb->input['view']));
 
     patches_output_header();
     patches_output_tabs();
