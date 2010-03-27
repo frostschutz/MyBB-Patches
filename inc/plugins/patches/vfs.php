@@ -24,35 +24,69 @@ if(!defined('IN_MYBB'))
     die('Direct initialization of this file is not allowed.<br /><br />Please make sure IN_MYBB is defined.');
 }
 
-class PatchesVFS
-{
-}
-
 /**
- * Identify a file name to be patched.
+ * Virtual File System class.
+ * Loads files into memory and allows modifications to them there.
  *
  */
-function patches_find_file($file)
+class PatchesVFS
 {
-    $realfile = realpath(MYBB_ROOT.$file);
+    /**
+     * Array that stores path/to/file => contents
+     */
+    private $vfs = array();
 
-    // If the file isn't found directly, chomp off the first path element.
-    if(!$realfile)
+    /**
+     * String that is the root directory of this VFS.
+     * The variable contains a trailing /.
+     */
+    private $root;
+
+    /**
+     * Constructing the VFS with the root directory.
+     */
+    function __construct($root)
     {
-        $file = explode('/', $file, 2);
-        $file = $file[1];
+        if($root)
+        {
+            $root = realpath("{$root}/");
 
-        $realfile = realpath(MYBB_ROOT.$file);
+            if($root && is_dir($root))
+            {
+                $this->root = $root . "/";
+                return;
+            }
+        }
+
+        Throw new Exception("PatchesVFS: invalid root parameter");
     }
 
-    // Check if we found a file, and not a directory,
-    // and also if it's really located within the MYBB_ROOT.
-    $realpath = realpath(MYBB_ROOT).'/';
-
-    if($realfile && is_file($realfile) &&
-       strncmp($realpath, $realfile, strlen($realpath)) == 0)
+    /**
+     * Load a file into the VFS.
+     *
+     * Returns the (normalized) file name, or False if it couldn't be loaded.
+     *
+     */
+    function load($file)
     {
-        return substr($realfile, strlen($realpath));
+        $realfile = realpath($this->root . $file);
+
+        // Check if we found a file, and not a directory,
+        // and also if it's really located within $this->root.
+        if($realfile && is_file($realfile)
+           && strncmp($this->root, $realfile, strlen($this->root)) == 0)
+        {
+            // Read the file and store it in the VFS.
+            $key = substr($realfile, strlen($this->root));
+            $value = file($realfile);
+
+            if($key && $value)
+            {
+                $this->vfs[$key] = $value;
+
+                return $key;
+            }
+        }
     }
 }
 
