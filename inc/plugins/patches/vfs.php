@@ -62,9 +62,9 @@ class PatchesVFS
     }
 
     /**
-     * Load a file into the VFS.
+     * Load a file into the VFS, if it is not already loaded yet.
      *
-     * Returns the (normalized) file name, or False if it couldn't be loaded.
+     * Returns the (normalized) file name.
      *
      */
     function load($file)
@@ -76,14 +76,21 @@ class PatchesVFS
         if($realfile && is_file($realfile)
            && strncmp($this->root, $realfile, strlen($this->root)) == 0)
         {
-            // Read the file and store it in the VFS.
             $key = substr($realfile, strlen($this->root));
+
+            // If the file was already loaded, return immediately.
+            if(!array_key_exists($key, $this->vfs))
+            {
+                return $key;
+            }
+
+            // Read the file.
             $value = file($realfile);
 
-            if($key && $value)
+            if($value)
             {
+                // Store it in the VFS and return.
                 $this->vfs[$key] = $value;
-
                 return $key;
             }
         }
