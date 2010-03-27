@@ -24,7 +24,7 @@ if(!defined('IN_MYBB'))
     die('Direct initialization of this file is not allowed.<br /><br />Please make sure IN_MYBB is defined.');
 }
 
-class patches_vfs
+class PatchesVFS
 {
 }
 

@@ -5,7 +5,7 @@
  * original file contents and credits see below
  *
  * changes:
- * - class renamed to patches_zipfile to avoid conflicts with other plugins
+ * - class renamed to PatchesZip to avoid naming conflicts with other plugins
  *
  */
 
@@ -44,7 +44,7 @@ if(!defined('IN_MYBB'))
  * @access  public
  * @package phpMyAdmin
  */
-class patches_zipfile
+class PatchesZip
 {
     /**
      * Array to store compressed data

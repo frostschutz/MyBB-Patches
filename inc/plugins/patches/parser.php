@@ -26,7 +26,7 @@ if(!defined('IN_MYBB'))
 
 /* --- Classes: --- */
 
-class patches_parser
+class PatchesParser
 {
 }
 
