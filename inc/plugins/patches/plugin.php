@@ -484,34 +484,6 @@ function patches_get_info($patch)
 }
 
 /**
- * Identify a file name to be patched.
- *
- */
-function patches_find_file($file)
-{
-    $realfile = realpath(MYBB_ROOT.$file);
-
-    // If the file isn't found directly, chomp off the first path element.
-    if(!$realfile)
-    {
-        $file = explode('/', $file, 2);
-        $file = $file[1];
-
-        $realfile = realpath(MYBB_ROOT.$file);
-    }
-
-    // Check if we found a file, and not a directory,
-    // and also if it's really located within the MYBB_ROOT.
-    $realpath = realpath(MYBB_ROOT).'/';
-
-    if($realfile && is_file($realfile) &&
-       strncmp($realpath, $realfile, strlen($realpath)) == 0)
-    {
-        return substr($realfile, strlen($realpath));
-    }
-}
-
-/**
  * prints a patch
  */
 function patches_print($parse)
@@ -576,5 +548,6 @@ function patches_print($parse)
         $table->output(htmlspecialchars_uni($file). " ($sumins inserts, $sumdel deletions)");
     }
 }
+
 /* --- End of file. --- */
 ?>
