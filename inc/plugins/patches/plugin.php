@@ -56,8 +56,8 @@ function patches_info()
 {
     return array(
         'name'          => 'Patches',
-        'description'   => 'Manage modifications to MyBB core files using patches.',
-        'website'       => 'http://www.mybboard.net',
+        'description'   => 'Manage modifications to MyBB core files.',
+        'website'       => 'https://github.com/frostschutz/Patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
         'version'       => '0.1',
@@ -88,22 +88,16 @@ function patches_install()
     if(!$db->table_exists('patches'))
     {
         $db->write_query('CREATE TABLE '.TABLE_PREFIX.'patches(
-                              hid INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                              patch VARCHAR(40) NOT NULL,
-                              version VARCHAR(10) NOT NULL,
-                              file VARCHAR(100) NOT NULL,
+                              id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                              file VARCHAR(150) NOT NULL,
                               size BIGINT NOT NULL,
                               date BIGINT NOT NULL,
-                              ins INT NOT NULL,
-                              del INT NOT NULL,
-                              from_a INT NOT NULL,
-                              from_b INT,
-                              to_a INT NOT NULL,
-                              to_b INT,
-                              diff BLOB NOT NULL,
-                              KEY (patch),
+                              search TEXT NOT NULL,
+                              before TEXT,
+                              after TEXT,
+                              replace TEXT,
                               KEY (file, size, date),
-                              PRIMARY KEY (hid)
+                              PRIMARY KEY (id)
                           ) TYPE=MyISAM'.$collation.';');
     }
 }
@@ -269,284 +263,9 @@ function patches_page()
                              array('colspan' => 4,
                                    'class' => 'align_center',
                                    'width' => 300));
-
-    $list = patches_get_list();
-
-    foreach($list as $patch)
-    {
-        $name = $version = $compatibility = $author = '';
-
-        $info = patches_get_info($patch);
-
-        $name = $info['name'];
-
-        if($info['website'])
-        {
-            $name = '<a href="'.$info['website'].'">'.$name.'</a>';
-        }
-
-        if($info['version'])
-        {
-            $version = '('.$info['version'].')';
-        }
-
-        if(!$info['compatibility'])
-        {
-            $compatibility = '<span style="color: red;">[Incompatible with MyBB '.$mybb->version_code.']</span>';
-        }
-
-        $author = $info['author'];
-
-        if($info['authorsite'])
-        {
-            $author = '<a href="'.$info['authorsite'].'">'.$author.'</a>';
-        }
-
-        $table->construct_cell("<strong>$name</strong> $version $compatibility<br />
-                                <small>{$info['description']}</small><br />
-                                <i><small>Created by {$author}</small></i>");
-
-        $urlpatch = urlencode($patch);
-
-        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;view='.$urlpatch.'">View</a>',
-                               array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;check='.$urlpatch.'">Check</a>',
-                               array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;apply='.$urlpatch.'">Apply</a>',
-                               array('class' => 'align_center', 'width' => 75));
-        $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches&amp;revert='.$urlpatch.'">Revert</a>',
-                               array('class' => 'align_center', 'width' => 75));
-        $table->construct_row();
-    }
-
     $table->output('Patches');
 
-    echo 'Get more patches <a href="http://www.mybboard.net">here</a>.';
-
     $page->output_footer();
-}
-
-/**
- * Output the patches view page.
- */
-function patches_page_view()
-{
-    global $mybb, $page;
-
-    $page->add_breadcrumb_item('View '.$mybb->input['view'], 'index.php?module=config-plugins&amp;action=patches&amp;view='.urlencode($mybb->input['view']));
-
-    patches_output_header();
-    patches_output_tabs();
-
-    $patch = $mybb->input['view'];
-
-    // $page->output_inline_error(array('inline error', 'foo bar'));
-
-    if($patch && patches_get_info($mybb->input['view']))
-    {
-        $parse = patches_parse($patch, $error, $comment);
-
-        if(count($error))
-        {
-            $page->output_inline_error($error);
-        }
-
-        if(count($comment))
-        {
-            $page->output_error(implode("<br />\n", $comment));
-        }
-
-        patches_print($parse);
-    }
-
-    else
-    {
-        echo 'Unknown patch.<br>';
-    }
-
-    $page->output_footer();
-}
-
-/**
- * Output the patches check page.
- */
-function patches_page_check()
-{
-    echo 'check';
-}
-
-/**
- * Output the patches apply page.
- */
-function patches_page_apply()
-{
-    echo 'apply';
-}
-
-/**
- * Output the patches revert page.
- */
-function patches_page_revert()
-{
-    echo 'revert';
-}
-
-/* --- Patchfile handling: --- */
-
-/**
- * Get a list of available patches and return them.
- */
-function patches_get_list()
-{
-    global $patches_list;
-
-    if(!$patches_list)
-    {
-        $dir = @opendir(MYBB_PATCHES);
-
-        if($dir)
-        {
-            while($file = readdir($dir))
-            {
-                if($file[0] == '.' || $file[0] == '#')
-                {
-                    // ignore hidden or temporary files
-                    continue;
-                }
-
-                $ext = get_extension($file);
-
-                if($ext == 'patch')
-                {
-                    // remove the file extension
-                    $file = my_substr($file, 0, -6);
-
-                    // add to list
-                    $patches_list[] = $file;
-                }
-            }
-
-            @sort($patches_list);
-        }
-
-        @closedir($dir);
-    }
-
-    return $patches_list;
-}
-
-/**
- * Get info for a patch and return it.
- */
-function patches_get_info($patch)
-{
-    global $mybb, $patches_info;
-
-    $list = patches_get_list();
-
-    if(!in_array($patch, $patches_info) && in_array($patch, $list))
-    {
-        // Initialize with standard info.
-        $patches_info[$patch] = array('name' => $patch,
-                                      'author' => 'Unknown',
-                                      'compatibility' => true);
-
-        // Fetch more detailed info from the ini file, if available.
-        $p = @parse_ini_file(MYBB_PATCHES."{$patch}.ini");
-
-        if(is_array($p))
-        {
-            // Merge this info into the patch info array.
-            $patches_info[$patch] = array_merge($patches_info[$patch], $p);
-
-            // Verify compatibility:
-            if($p['compatibility'])
-            {
-                $compatibility = explode(',', $p['compatibility']);
-                $patches_info[$patch]['compatibility'] = false;
-
-                foreach($compatibility as $version)
-                {
-                    $version = trim($version);
-                    $version = str_replace('\\*', '.+', preg_quote($version));
-
-                    if(preg_match("#{$version}#i", $mybb->version_code))
-                    {
-                        $patches_info[$patch]['compatibility'] = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    return $patches_info[$patch];
-}
-
-/**
- * prints a patch
- */
-function patches_print($parse)
-{
-    $files = array_keys($parse);
-    sort($files);
-
-    foreach($files as $file)
-    {
-        $sumins = 0;
-        $sumdel = 0;
-        $dots = false;
-
-        $table = new Table;
-
-        foreach($parse[$file] as $hid=>$hunk)
-        {
-            $sumins += $hunk['ins'];
-            $sumdel += $hunk['del'];
-
-            $line_from = $hunk['from_a'];
-            $line_to = $hunk['to_a'];
-
-            $from = array();
-            $to = array();
-            $diff = array();
-
-            foreach($hunk['diff'] as $line)
-            {
-                $mark = $line[0];
-                $line = substr($line, 1);
-                $line = trim($line, "\r\n");
-
-                if($mark == '+')
-                {
-                    $from[] = '';
-                    $to[] = sprintf('%5d', $line_to++);
-                    $diff[] = "<ins>".htmlspecialchars_uni($line)."</ins>";
-                }
-
-                else if($mark == '-')
-                {
-                    $from[] = sprintf('%5d', $line_from++);
-                    $to[] = '';
-                    $diff[] = "<del>".htmlspecialchars_uni($line)."</del>";
-                }
-
-                else
-                {
-                    $from[] = sprintf('%5d', $line_from++);
-                    $to[] = sprintf('%5d', $line_to++);
-                    $diff[] = htmlspecialchars_uni($line);
-                }
-            }
-
-            $table->construct_cell('<pre>'.implode("\n", $from)."\n</pre>", array('style' => 'width: 40px; min-width: 40px; max-width: 40px;'));
-            $table->construct_cell('<pre>'.implode("\n", $to)."\n</pre>", array('style' => 'width: 40px; min-width: 40px; max-width: 40px;'));
-            $table->construct_cell('<pre><code>'.implode("\n", $diff)."\n</code></pre>");
-            $table->construct_row();
-        }
-
-        $table->output(htmlspecialchars_uni($file). " ($sumins inserts, $sumdel deletions)");
-    }
 }
 
 /* --- End of file. --- */

@@ -28,7 +28,7 @@ if(!defined("IN_MYBB"))
 // Load the actual plugin only if in Admin CP.
 if(defined("IN_ADMINCP"))
 {
-    require_once(MYBB_ROOT."inc/plugins/patches/plugin.php");
+    require_once MYBB_ROOT."inc/plugins/patches/plugin.php";
 }
 
 /* --- End of file. --- */
