@@ -24,21 +24,10 @@ if(!defined('IN_MYBB'))
     die('Direct initialization of this file is not allowed.<br /><br />Please make sure IN_MYBB is defined.');
 }
 
-/**
- * Some parts of this code are based on admin/modules/config/plugins.php
- * due to similarity of functionality (list of patches vs. list of plugins,
- * tab integration into the plugins page).
- *
- */
-
-/* --- Defines: --- */
-define('MYBB_PATCHES', MYBB_ROOT.'inc/patches/');
-
-/* --- Global Variables: --- */
-
-global $patches_list, $patches_info;
-$patches_list = array();
-$patches_info = array();
+if(!defined("PLUGINLIBRARY"))
+{
+    define("PLUGINLIBRARY", MYBB_ROOT."inc/plugins/pluginlibrary.php");
+}
 
 /* --- Hooks: --- */
 
@@ -81,21 +70,27 @@ function patches_is_installed()
  */
 function patches_install()
 {
-    global $db;
+    global $db, $PL;
+
+    if(!file_exists(PLUGINLIBRARY))
+    {
+        flash_message("The selected plugin depends on <a href=\"https://github.com/frostschutz/PluginLibrary\">PluginLibrary</a>, which is missing.", "error");
+        admin_redirect("index.php?module=config-plugins");
+    }
+
+    $PL or require_once PLUGINLIBRARY;
 
     $collation = $db->build_create_table_collation();
 
     if(!$db->table_exists('patches'))
     {
         $db->write_query('CREATE TABLE '.TABLE_PREFIX.'patches(
-                              id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                              file VARCHAR(150) NOT NULL,
-                              size BIGINT NOT NULL,
-                              date BIGINT NOT NULL,
-                              search TEXT NOT NULL,
-                              before TEXT,
-                              after TEXT,
-                              replace TEXT,
+                              `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                              `file` VARCHAR(150) NOT NULL,
+                              `size` BIGINT,
+                              `date` BIGINT,
+                              `title` VARCHAR(150),
+                              `edits` TEXT NOT NULL,
                               KEY (file, size, date),
                               PRIMARY KEY (id)
                           ) TYPE=MyISAM'.$collation.';');
@@ -144,7 +139,7 @@ function patches_tabs_start($arguments)
     {
         $arguments['patches'] = array('title' => 'Patches',
                                       'link' => 'index.php?module=config-plugins&amp;action=patches',
-                                      'description' => 'This section allows you to manage available patches.');
+                                      'description' => 'This section allows you to manage available modifications.');
     }
 }
 
