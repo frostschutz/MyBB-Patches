@@ -337,5 +337,32 @@ function patches_page_create()
     $page->output_footer();
 }
 
+/**
+ * Normalize search pattern.
+ */
+function patches_normalize_search($search)
+{
+    $search = (array)$search;
+
+    $result = array();
+
+    foreach($search as $val)
+    {
+        $lines = explode("\n", $val);
+
+        foreach($lines as $line)
+        {
+            $line = trim($line);
+
+            if($line !== '')
+            {
+                $result[] = $line;
+            }
+        }
+    }
+
+    return $result;
+}
+
 /* --- End of file. --- */
 ?>
