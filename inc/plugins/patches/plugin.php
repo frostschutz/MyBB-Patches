@@ -200,9 +200,9 @@ function patches_plugins_begin()
         patches_page();
     }
 
-    else if($mybb->input['action'] == 'patches-create')
+    else if($mybb->input['action'] == 'patches-edit')
     {
-        patches_page_create();
+        patches_page_edit();
     }
 }
 
@@ -235,7 +235,7 @@ function patches_page()
         $table->construct_row();
     }
 
-    $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-create">Add a new Patch</a>',
+    $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-edit">Add a new Patch...</a>',
                            array('colspan' => 5));
     $table->construct_row();
 
@@ -244,9 +244,9 @@ function patches_page()
 }
 
 /**
- * Output patches create page.
+ * Output patches edit page.
  */
-function patches_page_create()
+function patches_page_edit()
 {
     global $mybb, $db, $page;
 
@@ -256,14 +256,18 @@ function patches_page_create()
     }
 
     $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
-    $page->add_breadcrumb_item('Create Patch', 'index.php?module=config-plugins&amp;action=patches-create');
+    $page->add_breadcrumb_item('Edit Patch', 'index.php?module=config-plugins&amp;action=patches-edit');
 
     // Header stuff.
     patches_output_header();
     patches_output_tabs();
 
-    $form = new Form("index.php?module=config-plugins&amp;action=patches-create", "post", "add");
-    $form_container = new FormContainer('Add a new Patch');
+    $form = new Form('index.php?module=config-plugins&amp;action=patches-edit', 'post');
+    $form_container = new FormContainer('Edit Patch');
+
+    echo $form->generate_hidden_field('patch',
+                                      intval($mybb->input['patch']),
+                                      array('id' => 'patch'));
 
     $form_container->output_row(
         'Filename',
@@ -295,7 +299,7 @@ function patches_page_create()
     $form_container->output_row(
         'Search',
         'search...',
-        $form->generate_text_area('search[]',
+        $form->generate_text_area('search',
                                   $mybb->input['search'],
                                   array('id' => 'search')),
         'search'
