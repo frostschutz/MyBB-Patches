@@ -85,18 +85,18 @@ function patches_install()
     if(!$db->table_exists('patches'))
     {
         $db->write_query('CREATE TABLE '.TABLE_PREFIX.'patches(
-                              `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                              `title` VARCHAR(100),
-                              `description` VARCHAR(200),
-                              `search` TEXT,
-                              `before` TEXT,
-                              `after` TEXT,
-                              `replace` TEXT,
-                              `file` VARCHAR(150) NOT NULL,
-                              `size` BIGINT,
-                              `date` BIGINT,
-                              KEY (file, size),
-                              PRIMARY KEY (id)
+                              `pid` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                              `ptitle` VARCHAR(100),
+                              `pdescription` VARCHAR(200),
+                              `pfile` VARCHAR(150) NOT NULL,
+                              `psize` BIGINT,
+                              `pdate` BIGINT,
+                              `psearch` TEXT,
+                              `pbefore` TEXT,
+                              `pafter` TEXT,
+                              `preplace` INT(1),
+                              KEY (pfile, psize),
+                              PRIMARY KEY (pid)
                           ) TYPE=MyISAM'.$collation.';');
     }
 }
@@ -225,12 +225,12 @@ function patches_page()
                                    'class' => 'align_center',
                                    'width' => 300));
 
-    $query = $db->simple_select('patches', 'id, file, size, date, title', '',
-                                array('order_by' => 'title'));
+    $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle', '',
+                                array('order_by' => 'pfile,ptitle'));
 
     while($row = $db->fetch_array($query))
     {
-        $table->construct_cell($row['title']);
+        $table->construct_cell($row['ptitle']);
         $table->construct_cell("bah");
         $table->construct_row();
     }
@@ -250,9 +250,93 @@ function patches_page_edit()
 {
     global $mybb, $db, $page;
 
+    $patch = intval($mybb->input['patch']);
+
     if($mybb->request_method == 'post')
     {
+        // validate input
         echo "<pre>".htmlspecialchars(print_r($mybb->input,true))."</pre>";
+
+        $errors = array();
+
+        $file = patches_normalize_file($mybb->input['pfile']);
+
+        if(!is_file(MYBB_ROOT.$file))
+        {
+            $errors[] = 'file does not exist';
+        }
+
+        $title = trim($mybb->input['ptitle']);
+
+        if(!$title)
+        {
+            $errors[] = 'missing title';
+        }
+
+        $description = trim($mybb->input['pdescription']);
+        // description is optional
+
+        $search = patches_normalize_search($mybb->input['psearch']);
+
+        if(!$search)
+        {
+            $errors[] = 'empty search pattern';
+        }
+
+        $search = implode("\n", $search);
+
+        $before = trim($mybb->input['pbefore']);
+        $after = trim($mybb->input['pafter']);
+        $replace = intval($mybb->input['preplace']);
+
+        if(!($before || $after || $replace))
+        {
+            $errors[] = 'no edit specified';
+        }
+
+        if(!$errors)
+        {
+            $data = array(
+                'ptitle' => $db->escape_string($title),
+                'pdescription' => $db->escape_string($description),
+                'psearch' => $db->escape_string($search),
+                'pbefore' => $db->escape_string($before),
+                'pafter' => $db->escape_string($after),
+                'preplace' => $replace,
+                'pfile' => $db->escape_string($file)
+                );
+
+            $patch = intval($mybb->input['patch']);
+
+            if($patch)
+            {
+                $update = $db->update_query('patches',
+                                            $insert,
+                                            "pid={$patch}");
+            }
+
+            if(!$update)
+            {
+                $db->insert_query('patches', $data);
+            }
+
+            flash_message('success', 'success');
+            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        }
+    }
+
+    else if($patch > 0)
+    {
+        // fetch info of existing patch
+        $query = $db->simple_select('patches',
+                                    'pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace',
+                                    "pid='{$patch}'");
+        $row = $db->fetch_array($query);
+
+        if($row)
+        {
+            $mybb->input = array_merge($mybb->input, $row);
+        }
     }
 
     $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
@@ -261,6 +345,11 @@ function patches_page_edit()
     // Header stuff.
     patches_output_header();
     patches_output_tabs();
+
+    if($errors)
+    {
+        $page->output_inline_error($errors);
+    }
 
     $form = new Form('index.php?module=config-plugins&amp;action=patches-edit', 'post');
     $form_container = new FormContainer('Edit Patch');
@@ -272,68 +361,77 @@ function patches_page_edit()
     $form_container->output_row(
         'Filename',
         'filename...',
-        $form->generate_text_box('filename',
-                                 $mybb->input['filename'],
-                                 array('id' => 'filename')),
-        'filename'
+        $form->generate_text_box('pfile',
+                                 $mybb->input['pfile'],
+                                 array('id' => 'pfile')),
+        'pfile'
         );
 
     $form_container->output_row(
         'Title',
         'title...',
-        $form->generate_text_box('title',
-                                 $mybb->input['title'],
-                                 array('id' => 'title')),
-        'title'
+        $form->generate_text_box('ptitle',
+                                 $mybb->input['ptitle'],
+                                 array('id' => 'ptitle')),
+        'ptitle'
         );
 
     $form_container->output_row(
         'Description',
         'description...',
-        $form->generate_text_box('description',
-                                 $mybb->input['description'],
-                                 array('id' => 'description')),
-        'description'
+        $form->generate_text_box('pdescription',
+                                 $mybb->input['pdescription'],
+                                 array('id' => 'pdescription')),
+        'pdescription'
         );
+
+    // normalize search before it goes back into the form
+    if($mybb->input['psearch'])
+    {
+        $search = patches_normalize_search($mybb->input['psearch']);
+        $mybb->input['psearch'] = implode("\n", $search);
+    }
 
     $form_container->output_row(
         'Search',
         'search...',
-        $form->generate_text_area('search',
-                                  $mybb->input['search'],
-                                  array('id' => 'search')),
-        'search'
+        $form->generate_text_area('psearch',
+                                  $mybb->input['psearch'],
+                                  array('id' => 'psearch')),
+        'psearch'
         );
 
     $form_container->output_row(
         'Before',
         'before...',
-        $form->generate_text_area('before',
-                                  $mybb->input['before'],
-                                  array('id' => 'before')),
-        'before'
+        $form->generate_text_area('pbefore',
+                                  $mybb->input['pbefore'],
+                                  array('id' => 'pbefore')),
+        'pbefore'
         );
 
     $form_container->output_row(
         'After',
         'after...',
-        $form->generate_text_area('after',
-                                  $mybb->input['after'],
-                                  array('id' => 'after')),
-        'after'
+        $form->generate_text_area('pafter',
+                                  $mybb->input['pafter'],
+                                  array('id' => 'pafter')),
+        'pafter'
         );
+
+    // set to 0, otherwise the yes no defaults to yes...
+    $mybb->input['preplace'] = intval($mybb->input['preplace']);
 
     $form_container->output_row(
         'Replace',
         'replace...',
-        $form->generate_text_area('replace',
-                                  $mybb->input['replace'],
-                                  array('id' => 'replace')),
-        'replace');
+        $form->generate_yes_no_radio('preplace',
+                                     $mybb->input['preplace']),
+        'preplace');
 
     $form_container->end();
 
-    $buttons[] = $form->generate_submit_button('Create Patch');
+    $buttons[] = $form->generate_submit_button('Save Patch');
 
     $form->output_submit_wrapper($buttons);
     $form->end();
@@ -366,6 +464,24 @@ function patches_normalize_search($search)
     }
 
     return $result;
+}
+
+/**
+ * Normalize file name
+ */
+function patches_normalize_file($file)
+{
+    $file = trim($file);
+    $file = realpath(MYBB_ROOT.$file);
+    $root = realpath(MYBB_ROOT).'/';
+
+    if(strpos($file, $root) === 0)
+    {
+        return substr($file, strlen($root));
+    }
+
+    // file outside MYBB_ROOT
+    return false;
 }
 
 /* --- End of file. --- */
