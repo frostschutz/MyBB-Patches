@@ -228,9 +228,19 @@ function patches_page()
     $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle', '',
                                 array('order_by' => 'pfile,ptitle'));
 
+    $file = '';
+
     while($row = $db->fetch_array($query))
     {
-        $table->construct_cell($row['ptitle']);
+        if($row['pfile'] != $file)
+        {
+            $file = $row['pfile'];
+            $table->construct_cell('<strong>'.$row['pfile'].'</strong>');
+            $table->construct_cell("bah");
+            $table->construct_row();
+        }
+
+        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.$row['ptitle']."</a></div>");
         $table->construct_cell("bah");
         $table->construct_row();
     }
@@ -254,8 +264,19 @@ function patches_page_edit()
 
     if($mybb->request_method == 'post')
     {
-        // validate input
         echo "<pre>".htmlspecialchars(print_r($mybb->input,true))."</pre>";
+
+        $patch = intval($mybb->input['patch']);
+
+        if($patch && $mybb->input['delete'])
+        {
+            // delete patch
+            $db->delete_query('patches', "pid={$patch}");
+            flash_message('success', 'success');
+            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        }
+
+        // validate input
 
         $errors = array();
 
@@ -306,12 +327,10 @@ function patches_page_edit()
                 'pfile' => $db->escape_string($file)
                 );
 
-            $patch = intval($mybb->input['patch']);
-
             if($patch)
             {
                 $update = $db->update_query('patches',
-                                            $insert,
+                                            $data,
                                             "pid={$patch}");
             }
 
@@ -432,6 +451,11 @@ function patches_page_edit()
     $form_container->end();
 
     $buttons[] = $form->generate_submit_button('Save Patch');
+
+    if(intval($mybb->input['patch']))
+    {
+        $buttons[] = $form->generate_submit_button('Delete Patch', array('name' => 'delete'));
+    }
 
     $form->output_submit_wrapper($buttons);
     $form->end();
