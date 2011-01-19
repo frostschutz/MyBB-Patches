@@ -86,12 +86,16 @@ function patches_install()
     {
         $db->write_query('CREATE TABLE '.TABLE_PREFIX.'patches(
                               `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                              `title` VARCHAR(100),
+                              `description` VARCHAR(200),
+                              `search` TEXT,
+                              `before` TEXT,
+                              `after` TEXT,
+                              `replace` TEXT,
                               `file` VARCHAR(150) NOT NULL,
                               `size` BIGINT,
                               `date` BIGINT,
-                              `title` VARCHAR(150),
-                              `edits` TEXT NOT NULL,
-                              KEY (file, size, date),
+                              KEY (file, size),
                               PRIMARY KEY (id)
                           ) TYPE=MyISAM'.$collation.';');
     }
@@ -154,13 +158,20 @@ function patches_output_tabs()
         'title' => $lang->plugins,
         'link' => 'index.php?module=config-plugins',
         'description' => $lang->plugins_desc
-    );
+        );
 
     $sub_tabs['update_plugins'] = array(
         'title' => $lang->plugin_updates,
         'link' => 'index.php?module=config-plugins&amp;action=check',
         'description' => $lang->plugin_updates_desc
-    );
+        );
+
+    $sub_tabs['browse_plugins'] = array(
+        'title' => $lang->browse_plugins,
+        'link' => "index.php?module=config-plugins&amp;action=browse",
+        'description' => $lang->browse_plugins_desc
+        );
+
 
     // The missing Patches tab will be added in the tab_start hook.
 
@@ -182,56 +193,16 @@ function patches_output_header()
  */
 function patches_plugins_begin()
 {
-    global $mybb, $lang, $page;
+    global $mybb;
 
-    if($mybb->input['action'] != 'patches')
-    {
-        return;
-    }
-
-    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
-
-    $page->extra_header .= '
-<style type="text/css">
-<!--
-
-ins {
-    background: #dfd;
-    text-decoration: none;
-}
-
-del {
-    background: #fdd;
-    text-decoration: none;
-}
-
--->
-</style>
-';
-
-    if($mybb->input['view'])
-    {
-        patches_page_view();
-    }
-
-    else if($mybb->input['check'])
-    {
-        patches_page_check();
-    }
-
-    else if($mybb->input['apply'])
-    {
-        patches_page_apply();
-    }
-
-    else if($mybb->input['revert'])
-    {
-        patches_page_revert();
-    }
-
-    else
+    if($mybb->input['action'] == 'patches')
     {
         patches_page();
+    }
+
+    else if($mybb->input['action'] == 'patches-create')
+    {
+        patches_page_create();
     }
 }
 
@@ -240,17 +211,12 @@ del {
  */
 function patches_page()
 {
-    global $mybb, $page;
+    global $mybb, $db, $page;
+
+    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
 
     patches_output_header();
     patches_output_tabs();
-
-    $page->output_success('Success');
-    $page->output_alert('Alert');
-    $page->output_inline_message('Inline Message');
-    $page->output_error('Error');
-    $page->output_inline_error('Inline Error');
-
 
     $table = new Table;
     $table->construct_header('Patch');
@@ -258,7 +224,115 @@ function patches_page()
                              array('colspan' => 4,
                                    'class' => 'align_center',
                                    'width' => 300));
+
+    $query = $db->simple_select('patches', 'id, file, size, date, title', '',
+                                array('order_by' => 'title'));
+
+    while($row = $db->fetch_array($query))
+    {
+        $table->construct_cell($row['title']);
+        $table->construct_cell("bah");
+        $table->construct_row();
+    }
+
+    $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-create">Add a new Patch</a>',
+                           array('colspan' => 5));
+    $table->construct_row();
+
     $table->output('Patches');
+    $page->output_footer();
+}
+
+/**
+ * Output patches create page.
+ */
+function patches_page_create()
+{
+    global $mybb, $db, $page;
+
+    if($mybb->request_method == 'post')
+    {
+        echo "<pre>".htmlspecialchars(print_r($mybb->input,true))."</pre>";
+    }
+
+    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
+    $page->add_breadcrumb_item('Create Patch', 'index.php?module=config-plugins&amp;action=patches-create');
+
+    // Header stuff.
+    patches_output_header();
+    patches_output_tabs();
+
+    $form = new Form("index.php?module=config-plugins&amp;action=patches-create", "post", "add");
+    $form_container = new FormContainer('Add a new Patch');
+
+    $form_container->output_row(
+        'Filename',
+        'filename...',
+        $form->generate_text_box('filename',
+                                 $mybb->input['filename'],
+                                 array('id' => 'filename')),
+        'filename'
+        );
+
+    $form_container->output_row(
+        'Title',
+        'title...',
+        $form->generate_text_box('title',
+                                 $mybb->input['title'],
+                                 array('id' => 'title')),
+        'title'
+        );
+
+    $form_container->output_row(
+        'Description',
+        'description...',
+        $form->generate_text_box('description',
+                                 $mybb->input['description'],
+                                 array('id' => 'description')),
+        'description'
+        );
+
+    $form_container->output_row(
+        'Search',
+        'search...',
+        $form->generate_text_area('search[]',
+                                  $mybb->input['search'],
+                                  array('id' => 'search')),
+        'search'
+        );
+
+    $form_container->output_row(
+        'Before',
+        'before...',
+        $form->generate_text_area('before',
+                                  $mybb->input['before'],
+                                  array('id' => 'before')),
+        'before'
+        );
+
+    $form_container->output_row(
+        'After',
+        'after...',
+        $form->generate_text_area('after',
+                                  $mybb->input['after'],
+                                  array('id' => 'after')),
+        'after'
+        );
+
+    $form_container->output_row(
+        'Replace',
+        'replace...',
+        $form->generate_text_area('replace',
+                                  $mybb->input['replace'],
+                                  array('id' => 'replace')),
+        'replace');
+
+    $form_container->end();
+
+    $buttons[] = $form->generate_submit_button('Create Patch');
+
+    $form->output_submit_wrapper($buttons);
+    $form->end();
 
     $page->output_footer();
 }
