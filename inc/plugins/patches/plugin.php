@@ -221,9 +221,9 @@ function patches_page()
     $table = new Table;
     $table->construct_header('Patch');
     $table->construct_header('Controls',
-                             array('colspan' => 4,
+                             array('colspan' => 3,
                                    'class' => 'align_center',
-                                   'width' => 300));
+                                   'width' => '30%'));
 
     $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle', '',
                                 array('order_by' => 'pfile,ptitle'));
@@ -235,13 +235,28 @@ function patches_page()
         if($row['pfile'] != $file)
         {
             $file = $row['pfile'];
-            $table->construct_cell('<strong>'.$row['pfile'].'</strong>');
-            $table->construct_cell("bah");
+            $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
+            $table->construct_cell('Apply', array('class' => 'align_center',
+                                                  'width' => '15%'));
+            $table->construct_cell('Revert', array('class' => 'align_center'));
             $table->construct_row();
         }
 
-        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.$row['ptitle']."</a></div>");
-        $table->construct_cell("bah");
+        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.htmlspecialchars($row['ptitle'])."</a></div>");
+
+        if($row['psize'] === NULL)
+        {
+            $table->construct_cell('Activate', array('class' => 'align_center',
+                                                     'width' => '15%'));
+        }
+
+        else
+        {
+            $table->construct_cell('Deactivate', array('class' => 'align_center',
+                                                       'width' => '15%'));
+        }
+
+        $table->construct_cell('Status', array('class' => 'align_center'));
         $table->construct_row();
     }
 
