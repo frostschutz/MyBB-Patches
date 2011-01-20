@@ -195,19 +195,23 @@ function patches_plugins_begin()
 {
     global $mybb;
 
-    if($mybb->input['action'] == 'patches')
+    switch((string)$mybb->input['action'])
     {
-        patches_page();
-    }
+        case 'patches':
+            patches_page();
+            break;
 
-    else if($mybb->input['action'] == 'patches-edit')
-    {
-        patches_page_edit();
-    }
+        case 'patches-edit':
+            patches_page_edit();
+            break;
 
-    else if($mybb->input['action'] == 'patches-activate')
-    {
-        patches_page_activate();
+        case 'patches-activate':
+            patches_page_activate();
+            break;
+
+        case 'patches-deactivate':
+            patches_page_deactivate();
+            break;
     }
 }
 
