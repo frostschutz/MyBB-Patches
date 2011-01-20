@@ -253,7 +253,7 @@ function patches_page()
 
         $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.htmlspecialchars($row['ptitle'])."</a></div>");
 
-        if($row['psize'] === NULL)
+        if(!$row['psize'])
         {
             $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-activate&amp;patch='.$row['pid'].'&amp;my_post_key='.$mybb->post_code.'">Activate</a>',
                                    array('class' => 'align_center',
@@ -262,11 +262,12 @@ function patches_page()
 
         else
         {
-            $table->construct_cell('Deactivate', array('class' => 'align_center',
-                                                       'width' => '15%'));
+            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-deactivate&amp;patch='.$row['pid'].'&amp;my_post_key='.$mybb->post_code.'">Deactivate</a>',
+                                   array('class' => 'align_center',
+                                         'width' => '15%'));
         }
 
-        if($row['psize'] === NULL)
+        if(!$row['psize'])
         {
             $table->construct_cell('-', array('class' => 'align_center'));
         }
@@ -507,6 +508,36 @@ function patches_page_edit()
  * Activate a patch
  */
 function patches_page_activate()
+{
+    global $mybb, $db;
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message('bad key', 'error');
+        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    }
+
+    $patch = intval($mybb->input['patch']);
+
+    if($patch > 0)
+    {
+        $db->update_query('patches',
+                          array('pdate' => 1,
+                                'psize' => 1),
+                          "pid={$patch}");
+
+        flash_message('success', 'success');
+        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    }
+
+    flash_message('patch not specified', 'error');
+    admin_redirect('index.php?module=config-plugins&amp;action=patches');
+}
+
+/**
+ * Deactivate a patch
+ */
+function patches_page_deactivate()
 {
     global $mybb, $db;
 
