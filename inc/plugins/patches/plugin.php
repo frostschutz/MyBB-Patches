@@ -204,6 +204,11 @@ function patches_plugins_begin()
     {
         patches_page_edit();
     }
+
+    else if($mybb->input['action'] == 'patches-activate')
+    {
+        patches_page_activate();
+    }
 }
 
 /**
@@ -246,8 +251,9 @@ function patches_page()
 
         if($row['psize'] === NULL)
         {
-            $table->construct_cell('Activate', array('class' => 'align_center',
-                                                     'width' => '15%'));
+            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-activate&amp;patch='.$row['pid'].'&amp;my_post_key='.$mybb->post_code.'">Activate</a>',
+                                   array('class' => 'align_center',
+                                         'width' => '15%'));
         }
 
         else
@@ -256,7 +262,22 @@ function patches_page()
                                                        'width' => '15%'));
         }
 
-        $table->construct_cell('Status', array('class' => 'align_center'));
+        if($row['psize'] === NULL)
+        {
+            $table->construct_cell('-', array('class' => 'align_center'));
+        }
+
+        else if($row['psize'] === @filesize(MYBB_ROOT.$file) &&
+                $row['pdate'] === @filemtime(MYBB_ROOT.$file))
+        {
+            $table->construct_cell('OK', array('class' => 'align_center'));
+        }
+
+        else
+        {
+            $table->construct_cell('FAIL', array('class' => 'align_center'));
+        }
+
         $table->construct_row();
     }
 
@@ -476,6 +497,36 @@ function patches_page_edit()
     $form->end();
 
     $page->output_footer();
+}
+
+/**
+ * Activate a patch
+ */
+function patches_page_activate()
+{
+    global $mybb, $db;
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message('bad key', 'error');
+        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    }
+
+    $patch = intval($mybb->input['patch']);
+
+    if($patch > 0)
+    {
+        $db->update_query('patches',
+                          array('pdate' => 0,
+                                'psize' => 0),
+                          "pid={$patch}");
+
+        flash_message('success', 'success');
+        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    }
+
+    flash_message('patch not specified', 'error');
+    admin_redirect('index.php?module=config-plugins&amp;action=patches');
 }
 
 /**
