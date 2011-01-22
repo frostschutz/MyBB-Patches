@@ -212,6 +212,9 @@ function patches_plugins_begin()
         case 'patches-deactivate':
             patches_page_deactivate();
             break;
+
+        case 'patches-apply':
+            patches_page_apply();
     }
 }
 
@@ -245,9 +248,11 @@ function patches_page()
         {
             $file = $row['pfile'];
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
-            $table->construct_cell('Apply', array('class' => 'align_center',
-                                                  'width' => '15%'));
-            $table->construct_cell('Revert', array('class' => 'align_center'));
+            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-apply&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Apply</a>',
+                                   array('class' => 'align_center',
+                                         'width' => '15%'));
+            $table->construct_cell('Revert',
+                                   array('class' => 'align_center'));
             $table->construct_row();
         }
 
@@ -272,8 +277,8 @@ function patches_page()
             $table->construct_cell('-', array('class' => 'align_center'));
         }
 
-        else if($row['psize'] === @filesize(MYBB_ROOT.$file) &&
-                $row['pdate'] === @filemtime(MYBB_ROOT.$file))
+        else if(intval($row['psize']) === @filesize(MYBB_ROOT.$file) &&
+                intval($row['pdate']) === @filemtime(MYBB_ROOT.$file))
         {
             $table->construct_cell('OK', array('class' => 'align_center'));
         }
@@ -562,6 +567,88 @@ function patches_page_deactivate()
 
     flash_message('patch not specified', 'error');
     admin_redirect('index.php?module=config-plugins&amp;action=patches');
+}
+
+/**
+ * Apply a patch
+ */
+function patches_page_apply()
+{
+    global $mybb, $db, $PL;
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message('bad key', 'error');
+        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    }
+
+    $file = patches_normalize_file($mybb->input['file']);
+
+    if($file)
+    {
+        $edits = array();
+
+        $dbfile = $db->escape_string($file);
+
+        $query = $db->simple_select('patches',
+                                    '*',
+                                    "pfile='{$dbfile}' AND psize > 0");
+
+        while($row = $db->fetch_array($query))
+        {
+            $search = patches_normalize_search($row['psearch']);
+
+            $edits[] = array(
+                'search' => $search,
+                'before' => $row['pbefore'],
+                'after' => $row['pafter'],
+                'replace' => $row['preplace'],
+                'patchid' => intval($row['pid'])
+                );
+        }
+
+        $PL or require_once PLUGINLIBRARY;
+
+        $result = $PL->edit_core('patches', $file, &$edits, true);
+
+        if($result === true)
+        {
+            $update = array(
+                'psize' => max(@filesize(MYBB_ROOT.$file), 1),
+                'pdate' => max(@filemtime(MYBB_ROOT.$file), 1)
+                );
+
+            $db->update_query('patches',
+                              $update,
+                              "pfile='{$dbfile}' AND psize > 0");
+
+            flash_message('success', 'success');
+            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        }
+
+        else if(is_string($result))
+        {
+            flash_message('file not writable', 'error');
+            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        }
+
+        else
+        {
+            patches_page_debug($edits);
+        }
+    }
+
+    flash_message('file not specified', 'error');
+    admin_redirect('index.php?module=config-plugins&amp;action=patches');
+}
+
+/**
+ * Debug patch
+ */
+function patches_page_debug($edits)
+{
+    echo '<pre>'.htmlspecialchars(print_r($edits, true)).'</pre>';
+    exit;
 }
 
 /**
