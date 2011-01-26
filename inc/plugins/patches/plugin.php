@@ -215,6 +215,11 @@ function patches_plugins_begin()
 
         case 'patches-apply':
             patches_page_apply();
+            break;
+
+        case 'patches-revert':
+            patches_page_apply(true);
+            break;
     }
 }
 
@@ -251,7 +256,7 @@ function patches_page()
             $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-apply&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Apply</a>',
                                    array('class' => 'align_center',
                                          'width' => '15%'));
-            $table->construct_cell('Revert',
+            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-revert&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Revert</a>',
                                    array('class' => 'align_center'));
             $table->construct_row();
         }
@@ -572,7 +577,7 @@ function patches_page_deactivate()
 /**
  * Apply a patch
  */
-function patches_page_apply()
+function patches_page_apply($revert=false)
 {
     global $mybb, $db, $PL;
 
@@ -588,23 +593,26 @@ function patches_page_apply()
     {
         $edits = array();
 
-        $dbfile = $db->escape_string($file);
-
-        $query = $db->simple_select('patches',
-                                    '*',
-                                    "pfile='{$dbfile}' AND psize > 0");
-
-        while($row = $db->fetch_array($query))
+        if(!$revert)
         {
-            $search = patches_normalize_search($row['psearch']);
+            $dbfile = $db->escape_string($file);
 
-            $edits[] = array(
-                'search' => $search,
-                'before' => $row['pbefore'],
-                'after' => $row['pafter'],
-                'replace' => $row['preplace'],
-                'patchid' => intval($row['pid'])
-                );
+            $query = $db->simple_select('patches',
+                                        '*',
+                                        "pfile='{$dbfile}' AND psize > 0");
+
+            while($row = $db->fetch_array($query))
+            {
+                $search = patches_normalize_search($row['psearch']);
+
+                $edits[] = array(
+                    'search' => $search,
+                    'before' => $row['pbefore'],
+                    'after' => $row['pafter'],
+                    'replace' => $row['preplace'],
+                    'patchid' => intval($row['pid'])
+                    );
+            }
         }
 
         $PL or require_once PLUGINLIBRARY;
