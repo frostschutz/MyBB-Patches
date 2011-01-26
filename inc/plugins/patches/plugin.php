@@ -253,11 +253,11 @@ function patches_page()
         {
             $file = $row['pfile'];
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
+            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-revert&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Revert</a>',
+                                   array('class' => 'align_center'));
             $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-apply&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Apply</a>',
                                    array('class' => 'align_center',
                                          'width' => '15%'));
-            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-revert&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Revert</a>',
-                                   array('class' => 'align_center'));
             $table->construct_row();
         }
 
@@ -277,20 +277,20 @@ function patches_page()
                                          'width' => '15%'));
         }
 
-        if(!$row['psize'])
+        if(!$row['psize'] && !$row['pdate'])
         {
-            $table->construct_cell('-', array('class' => 'align_center'));
+            $table->construct_cell('<img src="styles/default/images/icons/no_change.gif" alt="-" />', array('class' => 'align_center'));
         }
 
         else if(intval($row['psize']) === @filesize(MYBB_ROOT.$file) &&
                 intval($row['pdate']) === @filemtime(MYBB_ROOT.$file))
         {
-            $table->construct_cell('OK', array('class' => 'align_center'));
+            $table->construct_cell('<img src="styles/default/images/icons/tick.gif" alt="OK" />', array('class' => 'align_center'));
         }
 
         else
         {
-            $table->construct_cell('FAIL', array('class' => 'align_center'));
+            $table->construct_cell('<img src="styles/default/images/icons/cross.gif" alt="FAIL" />', array('class' => 'align_center'));
         }
 
         $table->construct_row();
@@ -562,8 +562,7 @@ function patches_page_deactivate()
     if($patch > 0)
     {
         $db->update_query('patches',
-                          array('pdate' => 0,
-                                'psize' => 0),
+                          array('psize' => 0),
                           "pid={$patch}");
 
         flash_message('success', 'success');
@@ -621,9 +620,15 @@ function patches_page_apply($revert=false)
 
         if($result === true)
         {
+            // Update deactivated patches:
+            $db->update_query('patches',
+                              array('pdate' => 0),
+                              "pfile='{$dbfile}' AND psize=0");
+
+            // Update activated patches:
             $update = array(
                 'psize' => max(@filesize(MYBB_ROOT.$file), 1),
-                'pdate' => max(@filemtime(MYBB_ROOT.$file), 1)
+                'pdate' => max(@filemtime(MYBB_ROOT.$file), 1),
                 );
 
             $db->update_query('patches',
