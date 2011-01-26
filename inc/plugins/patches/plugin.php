@@ -43,9 +43,13 @@ $plugins->add_hook('admin_config_plugins_begin', 'patches_plugins_begin');
  */
 function patches_info()
 {
+    global $lang;
+
+    $lang->load('patches');
+
     return array(
-        'name'          => 'Patches',
-        'description'   => 'Manage modifications to MyBB core files.',
+        'name'          => $lang->patches,
+        'description'   => $lang->patches_desc,
         'website'       => 'https://github.com/frostschutz/Patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
@@ -70,12 +74,14 @@ function patches_is_installed()
  */
 function patches_install()
 {
-    global $db, $PL;
+    global $db, $lang, $PL;
+
+    $lang->load('patches');
 
     if(!file_exists(PLUGINLIBRARY))
     {
-        flash_message("The selected plugin depends on <a href=\"https://github.com/frostschutz/PluginLibrary\">PluginLibrary</a>, which is missing.", "error");
-        admin_redirect("index.php?module=config-plugins");
+        flash_message($lang->patches_PL, 'error');
+        admin_redirect('index.php?module=config-plugins');
     }
 
     $PL or require_once PLUGINLIBRARY;
@@ -137,13 +143,15 @@ function patches_deactivate()
  */
 function patches_tabs_start($arguments)
 {
-    global $mybb;
+    global $mybb, $lang;
+
+    $lang->load('patches');
 
     if($mybb->input['module'] == 'config-plugins')
     {
-        $arguments['patches'] = array('title' => 'Patches',
-                                      'link' => 'index.php?module=config-plugins&amp;action=patches',
-                                      'description' => 'This section allows you to manage available modifications.');
+        $arguments['patches'] = array('title' => $lang->patches,
+                                      'description' => $lang->patches_tab_desc,
+                                      'link' => 'index.php?module=config-plugins&amp;action=patches');
     }
 }
 
@@ -228,16 +236,18 @@ function patches_plugins_begin()
  */
 function patches_page()
 {
-    global $mybb, $db, $page;
+    global $mybb, $db, $lang, $page;
 
-    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
+    $lang->load('patches');
+
+    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
 
     patches_output_header();
     patches_output_tabs();
 
     $table = new Table;
-    $table->construct_header('Patch');
-    $table->construct_header('Controls',
+    $table->construct_header($lang->patches_patch);
+    $table->construct_header($lang->patches_controls,
                              array('colspan' => 3,
                                    'class' => 'align_center',
                                    'width' => '30%'));
@@ -253,9 +263,9 @@ function patches_page()
         {
             $file = $row['pfile'];
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
-            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-revert&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Revert</a>',
+            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-revert&amp;file={$row['pfile']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_revert}</a>",
                                    array('class' => 'align_center'));
-            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-apply&amp;file='.$row['pfile'].'&amp;my_post_key='.$mybb->post_code.'">Apply</a>',
+            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-apply&amp;file={$row['pfile']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_apply}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
             $table->construct_row();
@@ -265,42 +275,45 @@ function patches_page()
 
         if(!$row['psize'])
         {
-            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-activate&amp;patch='.$row['pid'].'&amp;my_post_key='.$mybb->post_code.'">Activate</a>',
+            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-activate&amp;patch={$row['pid']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_activate}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
         }
 
         else
         {
-            $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-deactivate&amp;patch='.$row['pid'].'&amp;my_post_key='.$mybb->post_code.'">Deactivate</a>',
+            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-deactivate&amp;patch={$row['pid']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_deactivate}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
         }
 
         if(!$row['psize'] && !$row['pdate'])
         {
-            $table->construct_cell('<img src="styles/default/images/icons/no_change.gif" alt="-" />', array('class' => 'align_center'));
+            $table->construct_cell('<img src="styles/default/images/icons/no_change.gif" alt="-" />',
+                                   array('class' => 'align_center'));
         }
 
         else if(intval($row['psize']) === @filesize(MYBB_ROOT.$file) &&
                 intval($row['pdate']) === @filemtime(MYBB_ROOT.$file))
         {
-            $table->construct_cell('<img src="styles/default/images/icons/tick.gif" alt="OK" />', array('class' => 'align_center'));
+            $table->construct_cell("<img src=\"styles/default/images/icons/tick.gif\" alt=\"{$lang->patches_ok}\" />",
+                                   array('class' => 'align_center'));
         }
 
         else
         {
-            $table->construct_cell('<img src="styles/default/images/icons/cross.gif" alt="FAIL" />', array('class' => 'align_center'));
+            $table->construct_cell("<img src=\"styles/default/images/icons/cross.gif\" alt=\"{$lang->patches_fail}\" />",
+                                   array('class' => 'align_center'));
         }
 
         $table->construct_row();
     }
 
-    $table->construct_cell('<a href="index.php?module=config-plugins&amp;action=patches-edit">Add a new Patch...</a>',
+    $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-edit\">{$lang->patches_new}</a>",
                            array('colspan' => 5));
     $table->construct_row();
 
-    $table->output('Patches');
+    $table->output($lang->patches);
     $page->output_footer();
 }
 
@@ -309,21 +322,21 @@ function patches_page()
  */
 function patches_page_edit()
 {
-    global $mybb, $db, $page;
+    global $mybb, $db, $lang, $page;
+
+    $lang->load('patches');
 
     $patch = intval($mybb->input['patch']);
 
     if($mybb->request_method == 'post')
     {
-        echo "<pre>".htmlspecialchars(print_r($mybb->input,true))."</pre>";
-
         $patch = intval($mybb->input['patch']);
 
         if($patch && $mybb->input['delete'])
         {
             // delete patch
             $db->delete_query('patches', "pid={$patch}");
-            flash_message('success', 'success');
+            flash_message($lang->patches_deleted, 'success');
             admin_redirect('index.php?module=config-plugins&amp;action=patches');
         }
 
@@ -335,14 +348,14 @@ function patches_page_edit()
 
         if(!is_file(MYBB_ROOT.$file))
         {
-            $errors[] = 'file does not exist';
+            $errors[] = $lang->patches_error_file;
         }
 
         $title = trim($mybb->input['ptitle']);
 
         if(!$title)
         {
-            $errors[] = 'missing title';
+            $errors[] = $lang->patches_error_title;
         }
 
         $description = trim($mybb->input['pdescription']);
@@ -352,7 +365,7 @@ function patches_page_edit()
 
         if(!$search)
         {
-            $errors[] = 'empty search pattern';
+            $errors[] = $lang->patches_error_search;
         }
 
         $search = implode("\n", $search);
@@ -363,7 +376,7 @@ function patches_page_edit()
 
         if(!($before || $after || $replace))
         {
-            $errors[] = 'no edit specified';
+            $errors[] = $lang->patches_error_edit;
         }
 
         if(!$errors)
@@ -390,7 +403,7 @@ function patches_page_edit()
                 $db->insert_query('patches', $data);
             }
 
-            flash_message('success', 'success');
+            flash_message($lang->patches_saved, 'success');
             admin_redirect('index.php?module=config-plugins&amp;action=patches');
         }
     }
@@ -410,8 +423,8 @@ function patches_page_edit()
     }
 
     // Header stuff.
-    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
-    $page->add_breadcrumb_item('Edit Patch', 'index.php?module=config-plugins&amp;action=patches-edit');
+    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
+    $page->add_breadcrumb_item($lang->patches_edit, 'index.php?module=config-plugins&amp;action=patches-edit');
     patches_output_header();
     patches_output_tabs();
 
@@ -428,8 +441,8 @@ function patches_page_edit()
                                       array('id' => 'patch'));
 
     $form_container->output_row(
-        'Filename',
-        'filename...',
+        $lang->patches_filename,
+        $lang->patches_filename_desc,
         $form->generate_text_box('pfile',
                                  $mybb->input['pfile'],
                                  array('id' => 'pfile')),
@@ -437,8 +450,8 @@ function patches_page_edit()
         );
 
     $form_container->output_row(
-        'Title',
-        'title...',
+        $lang->patches_title,
+        $lang->patches_title_desc,
         $form->generate_text_box('ptitle',
                                  $mybb->input['ptitle'],
                                  array('id' => 'ptitle')),
@@ -446,8 +459,8 @@ function patches_page_edit()
         );
 
     $form_container->output_row(
-        'Description',
-        'description...',
+        $lang->patches_description,
+        $lang->patches_description_desc,
         $form->generate_text_box('pdescription',
                                  $mybb->input['pdescription'],
                                  array('id' => 'pdescription')),
@@ -462,8 +475,8 @@ function patches_page_edit()
     }
 
     $form_container->output_row(
-        'Search',
-        'search...',
+        $lang->patches_search,
+        $lang->patches_search_desc,
         $form->generate_text_area('psearch',
                                   $mybb->input['psearch'],
                                   array('id' => 'psearch')),
@@ -471,8 +484,8 @@ function patches_page_edit()
         );
 
     $form_container->output_row(
-        'Before',
-        'before...',
+        $lang->patches_before,
+        $lang->patches_before_desc,
         $form->generate_text_area('pbefore',
                                   $mybb->input['pbefore'],
                                   array('id' => 'pbefore')),
@@ -480,8 +493,8 @@ function patches_page_edit()
         );
 
     $form_container->output_row(
-        'After',
-        'after...',
+        $lang->patches_after,
+        $lang->patches_after_desc,
         $form->generate_text_area('pafter',
                                   $mybb->input['pafter'],
                                   array('id' => 'pafter')),
@@ -492,19 +505,19 @@ function patches_page_edit()
     $mybb->input['preplace'] = intval($mybb->input['preplace']);
 
     $form_container->output_row(
-        'Replace',
-        'replace...',
+        $lang->patches_replace,
+        $lang->patches_replace_desc,
         $form->generate_yes_no_radio('preplace',
                                      $mybb->input['preplace']),
         'preplace');
 
     $form_container->end();
 
-    $buttons[] = $form->generate_submit_button('Save Patch');
+    $buttons[] = $form->generate_submit_button($lang->patches_save);
 
     if(intval($mybb->input['patch']))
     {
-        $buttons[] = $form->generate_submit_button('Delete Patch', array('name' => 'delete'));
+        $buttons[] = $form->generate_submit_button($lang->patches_delete, array('name' => 'delete'));
     }
 
     $form->output_submit_wrapper($buttons);
@@ -518,11 +531,13 @@ function patches_page_edit()
  */
 function patches_page_activate()
 {
-    global $mybb, $db;
+    global $mybb, $db, $lang;
+
+    $lang->load('patches');
 
     if(!verify_post_check($mybb->input['my_post_key']))
     {
-        flash_message('bad key', 'error');
+        flash_message($lang->patches_error_key, 'error');
         admin_redirect('index.php?module=config-plugins&amp;action=patches');
     }
 
@@ -535,11 +550,11 @@ function patches_page_activate()
                                 'psize' => 1),
                           "pid={$patch}");
 
-        flash_message('success', 'success');
+        flash_message($lang->patches_activated, 'success');
         admin_redirect('index.php?module=config-plugins&amp;action=patches');
     }
 
-    flash_message('patch not specified', 'error');
+    flash_message($lang->patches_error, 'error');
     admin_redirect('index.php?module=config-plugins&amp;action=patches');
 }
 
@@ -548,11 +563,13 @@ function patches_page_activate()
  */
 function patches_page_deactivate()
 {
-    global $mybb, $db;
+    global $mybb, $db, $lang;
+
+    $lang->load('patches');
 
     if(!verify_post_check($mybb->input['my_post_key']))
     {
-        flash_message('bad key', 'error');
+        flash_message($lang->patches_error_key, 'error');
         admin_redirect('index.php?module=config-plugins&amp;action=patches');
     }
 
@@ -564,11 +581,11 @@ function patches_page_deactivate()
                           array('psize' => 0),
                           "pid={$patch}");
 
-        flash_message('success', 'success');
+        flash_message($lang->patches_deactivated, 'success');
         admin_redirect('index.php?module=config-plugins&amp;action=patches');
     }
 
-    flash_message('patch not specified', 'error');
+    flash_message($lang->patches_error, 'error');
     admin_redirect('index.php?module=config-plugins&amp;action=patches');
 }
 
@@ -577,11 +594,13 @@ function patches_page_deactivate()
  */
 function patches_page_apply($revert=false)
 {
-    global $mybb, $db, $PL;
+    global $mybb, $db, $lang, $PL;
+
+    $lang->load('patches');
 
     if(!verify_post_check($mybb->input['my_post_key']))
     {
-        flash_message('bad key', 'error');
+        flash_message($lang->patches_error_key, 'error');
         admin_redirect('index.php?module=config-plugins&amp;action=patches');
     }
 
@@ -633,13 +652,13 @@ function patches_page_apply($revert=false)
                               $update,
                               "pfile='{$dbfile}' AND psize!=0");
 
-            flash_message('success', 'success');
+            flash_message($lang->patches_applied, 'success');
             admin_redirect('index.php?module=config-plugins&amp;action=patches');
         }
 
         else if(is_string($result))
         {
-            flash_message('file not writable', 'error');
+            flash_message($lang->patches_error_write, 'error');
             admin_redirect('index.php?module=config-plugins&amp;action=patches');
         }
 
@@ -649,7 +668,7 @@ function patches_page_apply($revert=false)
         }
     }
 
-    flash_message('file not specified', 'error');
+    flash_message($lang->patches_error_file, 'error');
     admin_redirect('index.php?module=config-plugins&amp;action=patches');
 }
 
@@ -658,15 +677,17 @@ function patches_page_apply($revert=false)
  */
 function patches_page_debug($edits)
 {
-    global $mybb, $db, $page;
+    global $mybb, $db, $lang, $page;
+
+    $lang->load('patches');
 
     // Header stuff.
-    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
-    $page->add_breadcrumb_item('Apply', 'index.php?module=config-plugins&amp;action=patches-apply');
+    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
+    $page->add_breadcrumb_item($lang->patches_apply, 'index.php?module=config-plugins&amp;action=patches-apply');
     patches_output_header();
     patches_output_tabs();
 
-    echo 'Failed to apply edits. Debug info below.<br />';
+    echo $lang->patches_debug;
 
     echo '<pre>'.htmlspecialchars(print_r($edits, true)).'</pre>';
 
