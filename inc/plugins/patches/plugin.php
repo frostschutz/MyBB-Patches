@@ -409,10 +409,9 @@ function patches_page_edit()
         }
     }
 
+    // Header stuff.
     $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
     $page->add_breadcrumb_item('Edit Patch', 'index.php?module=config-plugins&amp;action=patches-edit');
-
-    // Header stuff.
     patches_output_header();
     patches_output_tabs();
 
@@ -587,6 +586,7 @@ function patches_page_apply($revert=false)
     }
 
     $file = patches_normalize_file($mybb->input['file']);
+    $dbfile = $db->escape_string($file);
 
     if($file)
     {
@@ -594,8 +594,6 @@ function patches_page_apply($revert=false)
 
         if(!$revert)
         {
-            $dbfile = $db->escape_string($file);
-
             $query = $db->simple_select('patches',
                                         '*',
                                         "pfile='{$dbfile}' AND psize > 0");
@@ -627,13 +625,13 @@ function patches_page_apply($revert=false)
 
             // Update activated patches:
             $update = array(
-                'psize' => max(@filesize(MYBB_ROOT.$file), 1),
-                'pdate' => max(@filemtime(MYBB_ROOT.$file), 1),
+                'psize' => $revert ? 1 : max(@filesize(MYBB_ROOT.$file), 1),
+                'pdate' => $revert ? 1 : max(@filemtime(MYBB_ROOT.$file), 1),
                 );
 
             $db->update_query('patches',
                               $update,
-                              "pfile='{$dbfile}' AND psize > 0");
+                              "pfile='{$dbfile}' AND psize!=0");
 
             flash_message('success', 'success');
             admin_redirect('index.php?module=config-plugins&amp;action=patches');
@@ -660,8 +658,19 @@ function patches_page_apply($revert=false)
  */
 function patches_page_debug($edits)
 {
+    global $mybb, $db, $page;
+
+    // Header stuff.
+    $page->add_breadcrumb_item('Patches', 'index.php?module=config-plugins&amp;action=patches');
+    $page->add_breadcrumb_item('Apply', 'index.php?module=config-plugins&amp;action=patches-apply');
+    patches_output_header();
+    patches_output_tabs();
+
+    echo 'Failed to apply edits. Debug info below.<br />';
+
     echo '<pre>'.htmlspecialchars(print_r($edits, true)).'</pre>';
-    exit;
+
+    $page->output_footer();
 }
 
 /**
