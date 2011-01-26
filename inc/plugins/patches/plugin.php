@@ -242,7 +242,7 @@ function patches_page()
                                    'class' => 'align_center',
                                    'width' => '30%'));
 
-    $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle', '',
+    $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle,pdescription', '',
                                 array('order_by' => 'pfile,ptitle'));
 
     $file = '';
@@ -261,7 +261,7 @@ function patches_page()
             $table->construct_row();
         }
 
-        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.htmlspecialchars($row['ptitle'])."</a></div>");
+        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.htmlspecialchars($row['ptitle']).'</a><br />'.htmlspecialchars($row['pdescription']).'</div>');
 
         if(!$row['psize'])
         {
