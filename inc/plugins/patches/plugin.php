@@ -269,14 +269,14 @@ function patches_page()
         {
             $file = $row['pfile'];
 
-            $reverturl = $PL->url(PATCHES_URL,
-                                  array('mode' => 'revert',
-                                        'file' => $row['pfile'],
-                                        'my_post_key' => $mybb->post_code));
-            $applyurl = $PL->url(PATCHES_URL,
-                                 array('mode' => 'apply',
-                                       'file' => $row['pfile'],
-                                       'my_post_key' => $mybb->post_code));
+            $reverturl = $PL->url_append(PATCHES_URL,
+                                         array('mode' => 'revert',
+                                               'file' => $row['pfile'],
+                                               'my_post_key' => $mybb->post_code));
+            $applyurl = $PL->url_append(PATCHES_URL,
+                                        array('mode' => 'apply',
+                                              'file' => $row['pfile'],
+                                              'my_post_key' => $mybb->post_code));
 
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
             $table->construct_cell("<a href=\"{$reverturl}\">{$lang->patches_revert}</a>",
@@ -287,9 +287,9 @@ function patches_page()
             $table->construct_row();
         }
 
-        $editurl = $PL->url(PATCHES_URL,
-                            array('mode' => 'edit',
-                                  'patch' => $row['pid']));
+        $editurl = $PL->url_append(PATCHES_URL,
+                                   array('mode' => 'edit',
+                                         'patch' => $row['pid']));
 
         $table->construct_cell("<div style=\"padding-left: 40px;\"><a href=\"{$editurl}\">"
                                .htmlspecialchars($row['ptitle'])
@@ -299,10 +299,10 @@ function patches_page()
 
         if(!$row['psize'])
         {
-            $activateurl = $PL->url(PATCHES_URL,
-                                    array('mode' => 'activate',
-                                          'patch' => $row['pid'],
-                                          'my_post_key' => $mybb->post_code));
+            $activateurl = $PL->url_append(PATCHES_URL,
+                                           array('mode' => 'activate',
+                                                 'patch' => $row['pid'],
+                                                 'my_post_key' => $mybb->post_code));
 
             $table->construct_cell("<a href=\"{$activateurl}\">{$lang->patches_activate}</a>",
                                    array('class' => 'align_center',
@@ -311,10 +311,10 @@ function patches_page()
 
         else
         {
-            $deactivateurl = $PL->url(PATCHES_URL,
-                                      array('mode' => 'deactivate',
-                                            'patch' => $row['pid'],
-                                            'my_post_key' => $mybb->post_code));
+            $deactivateurl = $PL->url_append(PATCHES_URL,
+                                             array('mode' => 'deactivate',
+                                                   'patch' => $row['pid'],
+                                                   'my_post_key' => $mybb->post_code));
 
             $table->construct_cell("<a href=\"{$deactivateurl}\">{$lang->patches_deactivate}</a>",
                                    array('class' => 'align_center',
@@ -349,7 +349,7 @@ function patches_page()
         $table->construct_row();
     }
 
-    $createurl = $PL->url(PATCHES_URL, array('mode' => 'edit'));
+    $createurl = $PL->url_append(PATCHES_URL, array('mode' => 'edit'));
 
     $table->construct_cell("<a href=\"{$createurl}\">{$lang->patches_new}</a>",
                            array('colspan' => 5,
