@@ -625,7 +625,7 @@ function patches_page_apply($revert=false)
                     'search' => $search,
                     'before' => $row['pbefore'],
                     'after' => $row['pafter'],
-                    'replace' => $row['preplace'],
+                    'replace' => intval($row['preplace']),
                     'patchid' => intval($row['pid'])
                     );
             }
