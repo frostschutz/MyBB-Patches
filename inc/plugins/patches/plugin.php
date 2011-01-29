@@ -29,6 +29,8 @@ if(!defined("PLUGINLIBRARY"))
     define("PLUGINLIBRARY", MYBB_ROOT."inc/plugins/pluginlibrary.php");
 }
 
+define('PATCHES_URL', 'index.php?module=config-plugins&amp;action=patches');
+
 /* --- Hooks: --- */
 
 global $plugins;
@@ -151,7 +153,7 @@ function patches_tabs_start($arguments)
     {
         $arguments['patches'] = array('title' => $lang->patches,
                                       'description' => $lang->patches_tab_desc,
-                                      'link' => 'index.php?module=config-plugins&amp;action=patches');
+                                      'link' => PATCHES_URL);
     }
 }
 
@@ -203,31 +205,34 @@ function patches_plugins_begin()
 {
     global $mybb;
 
-    switch((string)$mybb->input['action'])
+    if($mybb->input['action'] == 'patches')
     {
-        case 'patches':
-            patches_page();
-            break;
+        switch($mybb->input['mode'])
+        {
+            case 'edit':
+                patches_page_edit();
+                break;
 
-        case 'patches-edit':
-            patches_page_edit();
-            break;
+            case 'activate':
+                patches_page_activate();
+                break;
 
-        case 'patches-activate':
-            patches_page_activate();
-            break;
+            case 'deactivate':
+                patches_page_deactivate();
+                break;
 
-        case 'patches-deactivate':
-            patches_page_deactivate();
-            break;
+            case 'apply':
+                patches_page_apply();
+                break;
 
-        case 'patches-apply':
-            patches_page_apply();
-            break;
+            case 'revert':
+                patches_page_apply(true);
+                break;
 
-        case 'patches-revert':
-            patches_page_apply(true);
-            break;
+            default:
+                patches_page();
+                break;
+        }
     }
 }
 
@@ -236,11 +241,12 @@ function patches_plugins_begin()
  */
 function patches_page()
 {
-    global $mybb, $db, $lang, $page;
+    global $mybb, $db, $lang, $page, $PL;
+    $PL or require_once PLUGINLIBRARY;
 
     $lang->load('patches');
 
-    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
+    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
 
     patches_output_header();
     patches_output_tabs();
@@ -262,58 +268,113 @@ function patches_page()
         if($row['pfile'] != $file)
         {
             $file = $row['pfile'];
+
+            $reverturl = $PL->url(PATCHES_URL,
+                                  array('mode' => 'revert',
+                                        'file' => $row['pfile'],
+                                        'my_post_key' => $mybb->post_code));
+            $applyurl = $PL->url(PATCHES_URL,
+                                 array('mode' => 'apply',
+                                       'file' => $row['pfile'],
+                                       'my_post_key' => $mybb->post_code));
+
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
-            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-revert&amp;file={$row['pfile']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_revert}</a>",
+            $table->construct_cell("<a href=\"{$reverturl}\">{$lang->patches_revert}</a>",
                                    array('class' => 'align_center'));
-            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-apply&amp;file={$row['pfile']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_apply}</a>",
+            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
             $table->construct_row();
         }
 
-        $table->construct_cell('<div style="padding-left: 40px;"><a href="index.php?module=config-plugins&amp;action=patches-edit&amp;patch='.$row['pid'].'">'.htmlspecialchars($row['ptitle']).'</a><br />'.htmlspecialchars($row['pdescription']).'</div>');
+        $editurl = $PL->url(PATCHES_URL,
+                            array('mode' => 'edit',
+                                  'patch' => $row['pid']));
+
+        $table->construct_cell("<div style=\"padding-left: 40px;\"><a href=\"{$editurl}\">"
+                               .htmlspecialchars($row['ptitle'])
+                               .'</a><br />'
+                               .htmlspecialchars($row['pdescription'])
+                               .'</div>');
 
         if(!$row['psize'])
         {
-            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-activate&amp;patch={$row['pid']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_activate}</a>",
+            $activateurl = $PL->url(PATCHES_URL,
+                                    array('mode' => 'activate',
+                                          'patch' => $row['pid'],
+                                          'my_post_key' => $mybb->post_code));
+
+            $table->construct_cell("<a href=\"{$activateurl}\">{$lang->patches_activate}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
         }
 
         else
         {
-            $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-deactivate&amp;patch={$row['pid']}&amp;my_post_key={$mybb->post_code}\">{$lang->patches_deactivate}</a>",
+            $deactivateurl = $PL->url(PATCHES_URL,
+                                      array('mode' => 'deactivate',
+                                            'patch' => $row['pid'],
+                                            'my_post_key' => $mybb->post_code));
+
+            $table->construct_cell("<a href=\"{$deactivateurl}\">{$lang->patches_deactivate}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
         }
 
         if(!$row['psize'] && !$row['pdate'])
         {
-            $table->construct_cell('<img src="styles/default/images/icons/no_change.gif" alt="-" />',
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/no_change.gif\" alt=\"{$lang->patches_nochange}\" />",
                                    array('class' => 'align_center'));
         }
 
         else if(intval($row['psize']) === @filesize(MYBB_ROOT.$file) &&
                 intval($row['pdate']) === @filemtime(MYBB_ROOT.$file))
         {
-            $table->construct_cell("<img src=\"styles/default/images/icons/tick.gif\" alt=\"{$lang->patches_ok}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
+                                   array('class' => 'align_center'));
+        }
+
+        else if(intval($row['psize']) == 0)
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.gif\" alt=\"{$lang->patches_warning}\" />",
                                    array('class' => 'align_center'));
         }
 
         else
         {
-            $table->construct_cell("<img src=\"styles/default/images/icons/cross.gif\" alt=\"{$lang->patches_fail}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/cross.gif\" alt=\"{$lang->patches_cross}\" />",
                                    array('class' => 'align_center'));
         }
 
         $table->construct_row();
     }
 
-    $table->construct_cell("<a href=\"index.php?module=config-plugins&amp;action=patches-edit\">{$lang->patches_new}</a>",
+    $createurl = $PL->url(PATCHES_URL, array('mode' => 'edit'));
+
+    $table->construct_cell("<a href=\"{$createurl}\">{$lang->patches_new}</a>",
                            array('colspan' => 5));
     $table->construct_row();
 
     $table->output($lang->patches);
+
+    // legend
+    echo "
+<ul class=\"smalltext\">
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/no_change.gif)\" />
+        {$lang->patches_legend_nochange}
+    </li>
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/warning.gif)\" />
+        {$lang->patches_legend_warning}
+    </li>
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/tick.gif)\" />
+        {$lang->patches_legend_tick}
+    </li>
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/cross.gif)\" />
+        {$lang->patches_legend_cross}
+    </li>
+</ul>
+";
+
     $page->output_footer();
 }
 
