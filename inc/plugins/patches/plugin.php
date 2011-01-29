@@ -52,7 +52,7 @@ function patches_info()
     return array(
         'name'          => $lang->patches,
         'description'   => $lang->patches_desc,
-        'website'       => 'https://github.com/frostschutz/Patches',
+        'website'       => 'http://mods.mybb.com/view/patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
         'version'       => '1.0',
@@ -758,8 +758,24 @@ function patches_page_debug($edits)
     patches_output_tabs();
 
     echo $lang->patches_debug;
+    echo '<br />';
 
-    echo '<pre>'.htmlspecialchars(print_r($edits, true)).'</pre>';
+    foreach($edits as $edit)
+    {
+        if($edit['error'] && $edit['patchid'])
+        {
+            $editurl = $PL->url_append(PATCHES_URL,
+                                       array('mode' => 'edit',
+                                             'patch' => $edit['patchid']));
+
+            echo "<br />"
+                ."<strong><a href=\"{$editurl}\">"
+                .htmlspecialchars($edit['patchtitle'])
+                ."</a>: "
+                .htmlspecialchars($edit['error'])
+                ."</strong><br />\n";
+        }
+    }
 
     $page->output_footer();
 }
