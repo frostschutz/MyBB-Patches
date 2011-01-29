@@ -384,7 +384,8 @@ function patches_page()
  */
 function patches_page_edit()
 {
-    global $mybb, $db, $lang, $page;
+    global $mybb, $db, $lang, $page, $PL;
+    $PL or require_once PLUGINLIBRARY;
 
     $lang->load('patches');
 
@@ -485,8 +486,11 @@ function patches_page_edit()
     }
 
     // Header stuff.
-    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
-    $page->add_breadcrumb_item($lang->patches_edit, 'index.php?module=config-plugins&amp;action=patches-edit');
+    $editurl = $PL->url_append(PATCHES_URL, array('mode' => 'edit'));
+
+    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
+    $page->add_breadcrumb_item($lang->patches_edit, $editurl);
+
     patches_output_header();
     patches_output_tabs();
 
@@ -495,7 +499,7 @@ function patches_page_edit()
         $page->output_inline_error($errors);
     }
 
-    $form = new Form('index.php?module=config-plugins&amp;action=patches-edit', 'post');
+    $form = new Form($editurl, 'post');
     $form_container = new FormContainer('Edit Patch');
 
     echo $form->generate_hidden_field('patch',
@@ -740,13 +744,16 @@ function patches_page_apply($revert=false)
  */
 function patches_page_debug($edits)
 {
-    global $mybb, $db, $lang, $page;
+    global $mybb, $db, $lang, $page, $PL;
+    $PL or require_once PLUGINLIBRARY;
 
     $lang->load('patches');
 
     // Header stuff.
-    $page->add_breadcrumb_item($lang->patches, 'index.php?module=config-plugins&amp;action=patches');
-    $page->add_breadcrumb_item($lang->patches_apply, 'index.php?module=config-plugins&amp;action=patches-apply');
+    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
+    $page->add_breadcrumb_item($lang->patches_apply,
+                               $PL->url_append(PATCHES_URL,
+                                               array('mode' => 'apply')));
     patches_output_header();
     patches_output_tabs();
 
