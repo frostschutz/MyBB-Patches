@@ -55,8 +55,8 @@ function patches_info()
         'website'       => 'https://github.com/frostschutz/Patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
-        'version'       => '0.1',
-        'guid'          => '',
+        'version'       => '1.0',
+        'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
         'compatibility' => '16*',
     );
 }
