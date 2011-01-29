@@ -352,7 +352,8 @@ function patches_page()
     $createurl = $PL->url(PATCHES_URL, array('mode' => 'edit'));
 
     $table->construct_cell("<a href=\"{$createurl}\">{$lang->patches_new}</a>",
-                           array('colspan' => 5));
+                           array('colspan' => 5,
+                                 'class' => 'align_center'));
     $table->construct_row();
 
     $table->output($lang->patches);
