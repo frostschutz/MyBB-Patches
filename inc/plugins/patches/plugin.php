@@ -253,7 +253,7 @@ function patches_page()
                                    'width' => '30%'));
 
     $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle,pdescription', '',
-                                array('order_by' => 'pfile,ptitle'));
+                                array('order_by' => 'pfile,ptitle,pid'));
 
     $file = '';
 
@@ -626,7 +626,8 @@ function patches_page_apply($revert=false)
                     'before' => $row['pbefore'],
                     'after' => $row['pafter'],
                     'replace' => intval($row['preplace']),
-                    'patchid' => intval($row['pid'])
+                    'patchid' => intval($row['pid']),
+                    'patchtitle' => $row['ptitle'],
                     );
             }
         }
