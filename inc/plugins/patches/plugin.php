@@ -400,7 +400,7 @@ function patches_page_edit()
             // delete patch
             $db->delete_query('patches', "pid={$patch}");
             flash_message($lang->patches_deleted, 'success');
-            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+            admin_redirect(PATCHES_URL);
         }
 
         // validate input
@@ -467,7 +467,7 @@ function patches_page_edit()
             }
 
             flash_message($lang->patches_saved, 'success');
-            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+            admin_redirect(PATCHES_URL);
         }
     }
 
@@ -604,7 +604,7 @@ function patches_page_activate()
     if(!verify_post_check($mybb->input['my_post_key']))
     {
         flash_message($lang->patches_error_key, 'error');
-        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        admin_redirect(PATCHES_URL);
     }
 
     $patch = intval($mybb->input['patch']);
@@ -617,11 +617,11 @@ function patches_page_activate()
                           "pid={$patch}");
 
         flash_message($lang->patches_activated, 'success');
-        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        admin_redirect(PATCHES_URL);
     }
 
     flash_message($lang->patches_error, 'error');
-    admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    admin_redirect(PATCHES_URL);
 }
 
 /**
@@ -636,7 +636,7 @@ function patches_page_deactivate()
     if(!verify_post_check($mybb->input['my_post_key']))
     {
         flash_message($lang->patches_error_key, 'error');
-        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        admin_redirect(PATCHES_URL);
     }
 
     $patch = intval($mybb->input['patch']);
@@ -648,11 +648,11 @@ function patches_page_deactivate()
                           "pid={$patch}");
 
         flash_message($lang->patches_deactivated, 'success');
-        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        admin_redirect(PATCHES_URL);
     }
 
     flash_message($lang->patches_error, 'error');
-    admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    admin_redirect(PATCHES_URL);
 }
 
 /**
@@ -667,7 +667,7 @@ function patches_page_apply($revert=false)
     if(!verify_post_check($mybb->input['my_post_key']))
     {
         flash_message($lang->patches_error_key, 'error');
-        admin_redirect('index.php?module=config-plugins&amp;action=patches');
+        admin_redirect(PATCHES_URL);
     }
 
     $file = patches_normalize_file($mybb->input['file']);
@@ -720,13 +720,13 @@ function patches_page_apply($revert=false)
                               "pfile='{$dbfile}' AND psize!=0");
 
             flash_message($lang->patches_applied, 'success');
-            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+            admin_redirect(PATCHES_URL);
         }
 
         else if(is_string($result))
         {
             flash_message($lang->patches_error_write, 'error');
-            admin_redirect('index.php?module=config-plugins&amp;action=patches');
+            admin_redirect(PATCHES_URL);
         }
 
         else
@@ -736,7 +736,7 @@ function patches_page_apply($revert=false)
     }
 
     flash_message($lang->patches_error_file, 'error');
-    admin_redirect('index.php?module=config-plugins&amp;action=patches');
+    admin_redirect(PATCHES_URL);
 }
 
 /**
@@ -749,16 +749,8 @@ function patches_page_debug($edits)
 
     $lang->load('patches');
 
-    // Header stuff.
-    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
-    $page->add_breadcrumb_item($lang->patches_apply,
-                               $PL->url_append(PATCHES_URL,
-                                               array('mode' => 'apply')));
-    patches_output_header();
-    patches_output_tabs();
-
-    echo $lang->patches_debug;
-    echo '<br />';
+    $errors = $lang->patches_debug;
+    $errors .= '<ul>';
 
     foreach($edits as $edit)
     {
@@ -768,16 +760,19 @@ function patches_page_debug($edits)
                                        array('mode' => 'edit',
                                              'patch' => $edit['patchid']));
 
-            echo "<br />"
-                ."<strong><a href=\"{$editurl}\">"
+            $errors .= "<li>"
+                ."<a href=\"{$editurl}\">"
                 .htmlspecialchars($edit['patchtitle'])
                 ."</a>: "
                 .htmlspecialchars($edit['error'])
-                ."</strong><br />\n";
+                ."</li>\n";
         }
     }
 
-    $page->output_footer();
+    $errors .= '</ul>';
+
+    flash_message($errors, 'error');
+    admin_redirect(PATCHES_URL);
 }
 
 /**
