@@ -88,24 +88,48 @@ function patches_install()
 
     $PL or require_once PLUGINLIBRARY;
 
-    $collation = $db->build_create_table_collation();
-
     if(!$db->table_exists('patches'))
     {
-        $db->write_query('CREATE TABLE '.TABLE_PREFIX.'patches(
-                              `pid` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                              `ptitle` VARCHAR(100),
-                              `pdescription` VARCHAR(200),
-                              `pfile` VARCHAR(150) NOT NULL,
-                              `psize` BIGINT,
-                              `pdate` BIGINT,
-                              `psearch` TEXT,
-                              `pbefore` TEXT,
-                              `pafter` TEXT,
-                              `preplace` INT(1),
-                              KEY (pfile, psize),
-                              PRIMARY KEY (pid)
-                          ) TYPE=MyISAM'.$collation.';');
+        $collation = $db->build_create_table_collation();
+        $prefix = TABLE_PREFIX;
+
+        switch($db->type)
+        {
+            case 'sqlite':
+                $quote = '"';
+                $primary = 'INTEGER NOT NULL';
+                break;
+
+            case 'postgres':
+                $quote = '"';
+                $primary = 'SERIAL NOT NULL';
+                break;
+
+            default:
+                // Assume MySQL
+                $quote = '`';
+                $primary = 'INTEGER NOT NULL AUTO_INCREMENT';
+        }
+
+        $db->write_query("
+            CREATE TABLE {$quote}{$prefix}patches{$quote}
+            (
+                pid {$primary},
+                ptitle VARCHAR(100) NOT NULL,
+                pdescription VARCHAR(200),
+                pfile VARCHAR(150) NOT NULL,
+                psize BIGINT NOT NULL,
+                pdate BIGINT NOT NULL,
+                psearch TEXT NOT NULL,
+                pbefore TEXT,
+                pafter TEXT,
+                preplace INTEGER NOT NULL,
+                PRIMARY KEY (pid)
+            ) {$collation}");
+
+        $db->write_query("CREATE INDEX pfilesize
+                          ON {$quote}{$prefix}patches{$quote}
+                          (pfile, psize)");
     }
 }
 
