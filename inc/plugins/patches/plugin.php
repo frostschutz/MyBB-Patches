@@ -239,20 +239,117 @@ function patches_output_header()
 }
 
 /**
+ * Output preview
+ */
+
+function patches_output_preview($file, $search)
+{
+    global $page, $PL;
+    $PL or require_once PLUGINLIBRARY;
+
+    $PL->edit_core('patches', $file, $search,
+                   false, // do not apply
+                   $debug);
+
+    $table = new Table;
+
+    foreach($debug as $result)
+    {
+        if($result['error'])
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/error.gif\" /> "
+                                   .htmlspecialchars($result['error']));
+            $table->construct_row();
+        }
+
+        $before = $after = '';
+
+        if($result['before'])
+        {
+            $before = '<ins>'.htmlspecialchars($result['before']).'</ins>';
+        }
+
+        if($result['after'])
+        {
+            $after = '<ins>'.htmlspecialchars($result['after']).'</ins>';
+        }
+
+        if(is_string($result['replace']))
+        {
+            $after = '<ins>'.htmlspecialchars($result['replace']).'</ins>'
+                ."\n"
+                .$after;
+        }
+
+        foreach((array)$result['matches'] as $match)
+        {
+            $code = htmlspecialchars($match[2]);
+
+            // Highlight the code. Based on PluginLibrary reverse search code.
+            $start = strlen($code);
+
+            foreach(array_reverse($result['search']) as $needle)
+            {
+                $needle = htmlspecialchars($needle);
+                $start = strrpos($code, $needle, -strlen($code)+$start-strlen($needle));
+
+                $code = substr($code, 0, $start)
+                    .'<strong style="background:#ff0">'
+                    .substr($code, $start, strlen($needle))
+                    .'</strong>'
+                    .substr($code, $start+strlen($needle));
+            }
+
+            if($result['replace'] || is_string($result['replace']))
+            {
+                $code = "<del>{$code}</del>";
+            }
+
+            $table->construct_cell("<pre>{$before}\n{$code}\n{$after}</pre>");
+            $table->construct_row();
+        }
+    }
+
+    $table->output('Preview changes to '.htmlspecialchars($file));
+}
+
+/**
  * Handle active Patches tab case on the plugins page.
  */
 function patches_plugins_begin()
 {
-    global $mybb;
+    global $mybb, $page;
 
     if($mybb->input['action'] == 'patches')
     {
         patches_depend();
 
+        $page->extra_header .= '
+<style type="text/css">
+<!--
+
+ins {
+background: #dfd;
+text-decoration: none;
+}
+
+del {
+background: #fdd;
+text-decoration: none;
+}
+
+-->
+</style>
+';
+
         switch($mybb->input['mode'])
         {
             case 'edit':
                 patches_page_edit();
+                break;
+
+            case 'preview':
+                patches_page_preview();
                 break;
 
             case 'activate':
@@ -484,7 +581,7 @@ function patches_page_edit()
             $errors[] = $lang->patches_error_edit;
         }
 
-        if(!$errors)
+        if(!$errors && !$mybb->input['preview'])
         {
             $data = array(
                 'ptitle' => $db->escape_string($title),
@@ -514,6 +611,9 @@ function patches_page_edit()
             flash_message($lang->patches_saved, 'success');
             admin_redirect(PATCHES_URL);
         }
+
+        // Show a preview
+        $preview = true;
     }
 
     else if($patch > 0)
@@ -542,6 +642,15 @@ function patches_page_edit()
     if($errors)
     {
         $page->output_inline_error($errors);
+    }
+
+    else if($preview)
+    {
+        patches_output_preview($file,
+                               array('search' => explode("\n", $search),
+                                     'before' => $before,
+                                     'after' => $after,
+                                     'replace' => $replace));
     }
 
     $form = new Form($editurl, 'post');
@@ -625,10 +734,13 @@ function patches_page_edit()
     $form_container->end();
 
     $buttons[] = $form->generate_submit_button($lang->patches_save);
+    $buttons[] = $form->generate_submit_button($lang->patches_preview,
+                                               array('name' => 'preview'));
 
     if(intval($mybb->input['patch']))
     {
-        $buttons[] = $form->generate_submit_button($lang->patches_delete, array('name' => 'delete'));
+        $buttons[] = $form->generate_submit_button($lang->patches_delete,
+                                                   array('name' => 'delete'));
     }
 
     $form->output_submit_wrapper($buttons);
