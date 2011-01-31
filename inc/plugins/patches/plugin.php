@@ -72,11 +72,11 @@ function patches_is_installed()
 }
 
 /**
- * Install the plugin.
+ * Plugin Dependencies
  */
-function patches_install()
+function patches_depend()
 {
-    global $db, $lang, $PL;
+    global $lang, $PL;
 
     $lang->load('patches');
 
@@ -87,6 +87,22 @@ function patches_install()
     }
 
     $PL or require_once PLUGINLIBRARY;
+
+    if($PL->version < 2)
+    {
+        flash_message($lang->patches_PL_old, 'error');
+        admin_redirect("index.php?module=config-plugins");
+    }
+}
+
+/**
+ * Install the plugin.
+ */
+function patches_install()
+{
+    global $db;
+
+    patches_depend();
 
     if(!$db->table_exists('patches'))
     {
@@ -151,7 +167,7 @@ function patches_uninstall()
  */
 function patches_activate()
 {
-    // do nothing
+    patches_depend();
 }
 
 /**
@@ -231,6 +247,8 @@ function patches_plugins_begin()
 
     if($mybb->input['action'] == 'patches')
     {
+        patches_depend();
+
         switch($mybb->input['mode'])
         {
             case 'edit':
@@ -475,7 +493,8 @@ function patches_page_edit()
                 'pbefore' => $db->escape_string($before),
                 'pafter' => $db->escape_string($after),
                 'preplace' => $replace,
-                'pfile' => $db->escape_string($file)
+                'pfile' => $db->escape_string($file),
+                'pdate' => 1,
                 );
 
             if($patch)
@@ -487,6 +506,8 @@ function patches_page_edit()
 
             if(!$update)
             {
+                $data['psize'] = 0;
+                $data['pdate'] = 0;
                 $db->insert_query('patches', $data);
             }
 
@@ -724,7 +745,7 @@ function patches_page_apply($revert=false)
 
         $PL or require_once PLUGINLIBRARY;
 
-        $result = $PL->edit_core('patches', $file, &$edits, true);
+        $result = $PL->edit_core('patches', $file, $edits, true, $edits);
 
         if($result === true)
         {

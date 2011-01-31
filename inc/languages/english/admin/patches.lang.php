@@ -20,7 +20,8 @@
 
 $l = array(
     'patches' => 'Patches',
-    'patches_PL' => 'The selected plugin depends on <a href="https://github.com/frostschutz/PluginLibrary">PluginLibrary</a>, which is missing.',
+    'patches_PL' => 'The Patches plugin depends on <a href="http://mods.mybb.com/view/pluginlibrary">PluginLibrary</a>, which is missing. Please install it.',
+    'patches_PL_old' => 'The Patches plugin depends on <a href="http://mods.mybb.com/view/pluginlibrary">PluginLibrary</a>, which is too old. Please update it.',
     'patches_activate' => 'Activate',
     'patches_activated' => 'The selected Patch was activated successfully.',
     'patches_after' => 'Insert After',
