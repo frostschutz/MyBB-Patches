@@ -745,7 +745,7 @@ function patches_page_apply($revert=false)
 
         $PL or require_once PLUGINLIBRARY;
 
-        $result = $PL->edit_core('patches', $file, $edits, true, $edits);
+        $result = $PL->edit_core('patches', $file, $edits, true, $debug);
 
         if($result === true)
         {
@@ -776,7 +776,7 @@ function patches_page_apply($revert=false)
 
         else
         {
-            patches_page_debug($edits);
+            patches_page_debug($debug);
         }
     }
 
