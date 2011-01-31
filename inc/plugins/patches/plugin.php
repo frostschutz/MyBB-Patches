@@ -854,11 +854,12 @@ function patches_normalize_file($file)
 {
     $file = trim($file);
     $file = realpath(MYBB_ROOT.$file);
-    $root = realpath(MYBB_ROOT).'/';
+    $root = realpath(MYBB_ROOT);
 
-    if(strpos($file, $root) === 0)
+    if(strpos($file, $root.'/') === 0
+       || strpos($file, $root.'\\') === 0) // Windows :-(
     {
-        return substr($file, strlen($root));
+        return substr($file, strlen($root)+1);
     }
 
     // file outside MYBB_ROOT
