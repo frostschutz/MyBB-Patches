@@ -318,11 +318,14 @@ function patches_output_preview($file, $search)
  */
 function patches_plugins_begin()
 {
-    global $mybb, $page;
+    global $mybb, $lang, $page;
 
     if($mybb->input['action'] == 'patches')
     {
         patches_depend();
+
+        $lang->load('patches');
+        $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
 
         $page->extra_header .= '
 <style type="text/css">
@@ -348,10 +351,6 @@ text-decoration: none;
                 patches_page_edit();
                 break;
 
-            case 'preview':
-                patches_page_preview();
-                break;
-
             case 'activate':
                 patches_page_activate();
                 break;
@@ -368,6 +367,10 @@ text-decoration: none;
                 patches_page_apply(true);
                 break;
 
+            case 'preview':
+                patches_page_apply(false, true);
+                break;
+
             default:
                 patches_page();
                 break;
@@ -382,10 +385,6 @@ function patches_page()
 {
     global $mybb, $db, $lang, $page, $PL;
     $PL or require_once PLUGINLIBRARY;
-
-    $lang->load('patches');
-
-    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
 
     patches_output_header();
     patches_output_tabs();
@@ -416,11 +415,16 @@ function patches_page()
                                         array('mode' => 'apply',
                                               'file' => $row['pfile'],
                                               'my_post_key' => $mybb->post_code));
+            $previewurl = $PL->url_append(PATCHES_URL,
+                                          array('mode' => 'preview',
+                                                'file' => $row['pfile'],
+                                                'my_post_key' => $mybb->post_code));
 
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
             $table->construct_cell("<a href=\"{$reverturl}\">{$lang->patches_revert}</a>",
                                    array('class' => 'align_center'));
-            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>",
+            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>
+                                    <a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview}\" /></a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
             $table->construct_row();
@@ -633,7 +637,6 @@ function patches_page_edit()
     // Header stuff.
     $editurl = $PL->url_append(PATCHES_URL, array('mode' => 'edit'));
 
-    $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
     $page->add_breadcrumb_item($lang->patches_edit, $editurl);
 
     patches_output_header();
@@ -815,7 +818,7 @@ function patches_page_deactivate()
 /**
  * Apply a patch
  */
-function patches_page_apply($revert=false)
+function patches_page_apply($revert=false, $preview=false)
 {
     global $mybb, $db, $lang, $PL;
 
@@ -857,9 +860,14 @@ function patches_page_apply($revert=false)
 
         $PL or require_once PLUGINLIBRARY;
 
-        $result = $PL->edit_core('patches', $file, $edits, true, $debug);
+        $result = $PL->edit_core('patches', $file, $edits, !$preview, $debug);
 
-        if($result === true)
+        if($preview)
+        {
+            patches_page_preview($file, $debug);
+        }
+
+        else if($result === true)
         {
             // Update deactivated patches:
             $db->update_query('patches',
@@ -894,6 +902,21 @@ function patches_page_apply($revert=false)
 
     flash_message($lang->patches_error_file, 'error');
     admin_redirect(PATCHES_URL);
+}
+
+/**
+ * Preview patch
+ */
+function patches_page_preview($file, $debug)
+{
+    global $lang, $page;
+
+    $page->add_breadcrumb_item($lang->patches_preview, PATCHES_URL);
+
+    patches_output_header();
+    patches_output_tabs();
+    patches_output_preview($file, $debug);
+    $page->output_footer();
 }
 
 /**
