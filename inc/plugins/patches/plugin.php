@@ -72,30 +72,6 @@ function patches_is_installed()
 }
 
 /**
- * Plugin Dependencies
- */
-function patches_depend()
-{
-    global $lang, $PL;
-
-    $lang->load('patches');
-
-    if(!file_exists(PLUGINLIBRARY))
-    {
-        flash_message($lang->patches_PL, 'error');
-        admin_redirect('index.php?module=config-plugins');
-    }
-
-    $PL or require_once PLUGINLIBRARY;
-
-    if($PL->version < 2)
-    {
-        flash_message($lang->patches_PL_old, 'error');
-        admin_redirect("index.php?module=config-plugins");
-    }
-}
-
-/**
  * Install the plugin.
  */
 function patches_install()
@@ -178,7 +154,79 @@ function patches_deactivate()
     // do nothing
 }
 
-/* --- Patches page: --- */
+/* --- Helpers: --- */
+
+/**
+ * Plugin Dependencies
+ */
+function patches_depend()
+{
+    global $lang, $PL;
+
+    $lang->load('patches');
+
+    if(!file_exists(PLUGINLIBRARY))
+    {
+        flash_message($lang->patches_PL, 'error');
+        admin_redirect('index.php?module=config-plugins');
+    }
+
+    $PL or require_once PLUGINLIBRARY;
+
+    if($PL->version < 2)
+    {
+        flash_message($lang->patches_PL_old, 'error');
+        admin_redirect("index.php?module=config-plugins");
+    }
+}
+
+/**
+ * Normalize search pattern.
+ */
+function patches_normalize_search($search)
+{
+    $search = (array)$search;
+
+    $result = array();
+
+    foreach($search as $val)
+    {
+        $lines = explode("\n", $val);
+
+        foreach($lines as $line)
+        {
+            $line = trim($line);
+
+            if($line !== '')
+            {
+                $result[] = $line;
+            }
+        }
+    }
+
+    return $result;
+}
+
+/**
+ * Normalize file name
+ */
+function patches_normalize_file($file)
+{
+    $file = trim($file);
+    $file = realpath(MYBB_ROOT.$file);
+    $root = realpath(MYBB_ROOT);
+
+    if(strpos($file, $root.'/') === 0
+       || strpos($file, $root.'\\') === 0) // Windows :-(
+    {
+        return substr($file, strlen($root)+1);
+    }
+
+    // file outside MYBB_ROOT
+    return false;
+}
+
+/* --- Hook functions: --- */
 
 /**
  * Add Patches tab on the plugins page.
@@ -196,6 +244,74 @@ function patches_tabs_start($arguments)
                                       'link' => PATCHES_URL);
     }
 }
+
+/**
+ * Handle active Patches tab case on the plugins page.
+ */
+function patches_plugins_begin()
+{
+    global $mybb, $lang, $page;
+
+    if($mybb->input['action'] == 'patches')
+    {
+        patches_depend();
+
+        $lang->load('patches');
+        $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
+
+        $page->extra_header .= '
+<style type="text/css">
+<!--
+
+ins {
+background: #dfd;
+text-decoration: none;
+}
+
+del {
+background: #fdd;
+text-decoration: none;
+}
+
+-->
+</style>
+';
+
+        switch($mybb->input['mode'])
+        {
+            case 'edit':
+                patches_page_edit();
+                break;
+
+            case 'activate':
+                patches_action_activate();
+                break;
+
+            case 'deactivate':
+                patches_action_deactivate();
+                break;
+
+            case 'apply':
+                patches_action_apply();
+                break;
+
+            case 'revert':
+                patches_action_apply(true);
+                break;
+
+            case 'preview':
+                // indirect call to patches_page_preview():
+                patches_action_apply(false, true);
+                break;
+
+            default:
+                patches_page();
+                break;
+        }
+    }
+}
+
+/* --- Output functions: --- */
 
 /**
  * Output tabs with Patches as active.
@@ -241,7 +357,6 @@ function patches_output_header()
 /**
  * Output preview
  */
-
 function patches_output_preview($file, $search)
 {
     global $page, $PL;
@@ -258,11 +373,23 @@ function patches_output_preview($file, $search)
 
     foreach($debug as $result)
     {
+        $error = '';
+
         if($result['error'])
         {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/error.gif\" /> "
-                                   .htmlspecialchars($result['error']));
-            $table->construct_row();
+            $error = htmlspecialchars($result['error']);
+
+            if($result['patchid'] && $result['patchtitle'])
+            {
+                $editurl = $PL->url_append(PATCHES_URL,
+                                           array('mode' => 'edit',
+                                                 'patch' => $result['patchid']));
+
+                $error = "<a href=\"{$editurl}\">"
+                    .htmlspecialchars($result['patchtitle'])."</a>: {$error}";
+            }
+
+            $error = "<img src=\"styles/{$page->style}/images/icons/error.gif\" /> {$error}";
         }
 
         $before = $after = '';
@@ -294,8 +421,11 @@ function patches_output_preview($file, $search)
             $after = "<ins>{$ins}</ins>";
         }
 
+        $rows = 0;
+
         foreach((array)$result['matches'] as $match)
         {
+            $rows++;
             $code = htmlspecialchars($match[2]);
 
             // Highlight the code. Based on PluginLibrary reverse search code.
@@ -319,7 +449,13 @@ function patches_output_preview($file, $search)
                 $code = "<del>{$code}</del>";
             }
 
-            $table->construct_cell("<pre>{$before}{$code}{$after}</pre>");
+            $table->construct_cell("{$error}<pre>{$before}{$code}{$after}</pre>");
+            $table->construct_row();
+        }
+
+        if(!$rows && $error)
+        {
+            $table->construct_cell($error);
             $table->construct_row();
         }
     }
@@ -327,73 +463,200 @@ function patches_output_preview($file, $search)
     $table->output('Preview changes to '.htmlspecialchars($file));
 }
 
+/* --- Actions: --- */
+
 /**
- * Handle active Patches tab case on the plugins page.
+ * Activate a patch
  */
-function patches_plugins_begin()
+function patches_action_activate()
 {
-    global $mybb, $lang, $page;
+    global $mybb, $db, $lang;
 
-    if($mybb->input['action'] == 'patches')
+    $lang->load('patches');
+
+    if(!verify_post_check($mybb->input['my_post_key']))
     {
-        patches_depend();
+        flash_message($lang->patches_error_key, 'error');
+        admin_redirect(PATCHES_URL);
+    }
 
-        $lang->load('patches');
-        $page->add_breadcrumb_item($lang->patches, PATCHES_URL);
+    $patch = intval($mybb->input['patch']);
 
-        $page->extra_header .= '
-<style type="text/css">
-<!--
+    if($patch > 0)
+    {
+        $db->update_query('patches',
+                          array('pdate' => 1,
+                                'psize' => 1),
+                          "pid={$patch}");
 
-ins {
-background: #dfd;
-text-decoration: none;
+        flash_message($lang->patches_activated, 'success');
+        admin_redirect(PATCHES_URL);
+    }
+
+    flash_message($lang->patches_error, 'error');
+    admin_redirect(PATCHES_URL);
 }
 
-del {
-background: #fdd;
-text-decoration: none;
+/**
+ * Deactivate a patch
+ */
+function patches_action_deactivate()
+{
+    global $mybb, $db, $lang;
+
+    $lang->load('patches');
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message($lang->patches_error_key, 'error');
+        admin_redirect(PATCHES_URL);
+    }
+
+    $patch = intval($mybb->input['patch']);
+
+    if($patch > 0)
+    {
+        $db->update_query('patches',
+                          array('psize' => 0),
+                          "pid={$patch}");
+
+        flash_message($lang->patches_deactivated, 'success');
+        admin_redirect(PATCHES_URL);
+    }
+
+    flash_message($lang->patches_error, 'error');
+    admin_redirect(PATCHES_URL);
 }
 
--->
-</style>
-';
+/**
+ * Apply a patch
+ */
+function patches_action_apply($revert=false, $preview=false)
+{
+    global $mybb, $db, $lang, $PL;
 
-        switch($mybb->input['mode'])
+    $lang->load('patches');
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message($lang->patches_error_key, 'error');
+        admin_redirect(PATCHES_URL);
+    }
+
+    $file = patches_normalize_file($mybb->input['file']);
+    $dbfile = $db->escape_string($file);
+
+    if($file)
+    {
+        $edits = array();
+
+        if(!$revert)
         {
-            case 'edit':
-                patches_page_edit();
-                break;
+            $query = $db->simple_select('patches',
+                                        '*',
+                                        "pfile='{$dbfile}' AND psize > 0");
 
-            case 'activate':
-                patches_page_activate();
-                break;
+            while($row = $db->fetch_array($query))
+            {
+                $search = patches_normalize_search($row['psearch']);
 
-            case 'deactivate':
-                patches_page_deactivate();
-                break;
+                $edits[] = array(
+                    'search' => $search,
+                    'before' => $row['pbefore'],
+                    'after' => $row['pafter'],
+                    'replace' => intval($row['preplace']),
+                    'patchid' => intval($row['pid']),
+                    'patchtitle' => $row['ptitle'],
+                    );
+            }
+        }
 
-            case 'apply':
-                patches_page_apply();
-                break;
+        $PL or require_once PLUGINLIBRARY;
 
-            case 'revert':
-                patches_page_apply(true);
-                break;
+        $result = $PL->edit_core('patches', $file, $edits, !$preview, $debug);
 
-            case 'preview':
-                patches_page_apply(false, true);
-                break;
+        if($preview)
+        {
+            patches_page_preview($file, $debug);
+        }
 
-            default:
-                patches_page();
-                break;
+        else if($result === true)
+        {
+            // Update deactivated patches:
+            $db->update_query('patches',
+                              array('pdate' => 0),
+                              "pfile='{$dbfile}' AND psize=0");
+
+            // Update activated patches:
+            $update = array(
+                'psize' => $revert ? 1 : max(@filesize(MYBB_ROOT.$file), 1),
+                'pdate' => $revert ? 1 : max(@filemtime(MYBB_ROOT.$file), 1),
+                );
+
+            $db->update_query('patches',
+                              $update,
+                              "pfile='{$dbfile}' AND psize!=0");
+
+            flash_message($lang->patches_applied, 'success');
+            admin_redirect(PATCHES_URL);
+        }
+
+        else if(is_string($result))
+        {
+            flash_message($lang->patches_error_write, 'error');
+            admin_redirect(PATCHES_URL);
+        }
+
+        else
+        {
+            patches_action_debug($debug);
         }
     }
+
+    flash_message($lang->patches_error_file, 'error');
+    admin_redirect(PATCHES_URL);
 }
 
 /**
- * Output the patches main page.
+ * Debug patch
+ */
+function patches_action_debug($edits)
+{
+    global $mybb, $db, $lang, $page, $PL;
+    $PL or require_once PLUGINLIBRARY;
+
+    $lang->load('patches');
+
+    $errors = $lang->patches_debug;
+    $errors .= '<ul>';
+
+    foreach($edits as $edit)
+    {
+        if($edit['error'] && $edit['patchid'])
+        {
+            $editurl = $PL->url_append(PATCHES_URL,
+                                       array('mode' => 'edit',
+                                             'patch' => $edit['patchid']));
+
+            $errors .= "<li>"
+                ."<a href=\"{$editurl}\">"
+                .htmlspecialchars($edit['patchtitle'])
+                ."</a>: "
+                .htmlspecialchars($edit['error'])
+                ."</li>\n";
+        }
+    }
+
+    $errors .= '</ul>';
+
+    flash_message($errors, 'error');
+    admin_redirect(PATCHES_URL);
+}
+
+/* --- Page functions: --- */
+
+/**
+ * The patches main page.
  */
 function patches_page()
 {
@@ -537,7 +800,7 @@ function patches_page()
 }
 
 /**
- * Output patches edit page.
+ * Patches edit page.
  */
 function patches_page_edit()
 {
@@ -767,158 +1030,6 @@ function patches_page_edit()
 }
 
 /**
- * Activate a patch
- */
-function patches_page_activate()
-{
-    global $mybb, $db, $lang;
-
-    $lang->load('patches');
-
-    if(!verify_post_check($mybb->input['my_post_key']))
-    {
-        flash_message($lang->patches_error_key, 'error');
-        admin_redirect(PATCHES_URL);
-    }
-
-    $patch = intval($mybb->input['patch']);
-
-    if($patch > 0)
-    {
-        $db->update_query('patches',
-                          array('pdate' => 1,
-                                'psize' => 1),
-                          "pid={$patch}");
-
-        flash_message($lang->patches_activated, 'success');
-        admin_redirect(PATCHES_URL);
-    }
-
-    flash_message($lang->patches_error, 'error');
-    admin_redirect(PATCHES_URL);
-}
-
-/**
- * Deactivate a patch
- */
-function patches_page_deactivate()
-{
-    global $mybb, $db, $lang;
-
-    $lang->load('patches');
-
-    if(!verify_post_check($mybb->input['my_post_key']))
-    {
-        flash_message($lang->patches_error_key, 'error');
-        admin_redirect(PATCHES_URL);
-    }
-
-    $patch = intval($mybb->input['patch']);
-
-    if($patch > 0)
-    {
-        $db->update_query('patches',
-                          array('psize' => 0),
-                          "pid={$patch}");
-
-        flash_message($lang->patches_deactivated, 'success');
-        admin_redirect(PATCHES_URL);
-    }
-
-    flash_message($lang->patches_error, 'error');
-    admin_redirect(PATCHES_URL);
-}
-
-/**
- * Apply a patch
- */
-function patches_page_apply($revert=false, $preview=false)
-{
-    global $mybb, $db, $lang, $PL;
-
-    $lang->load('patches');
-
-    if(!verify_post_check($mybb->input['my_post_key']))
-    {
-        flash_message($lang->patches_error_key, 'error');
-        admin_redirect(PATCHES_URL);
-    }
-
-    $file = patches_normalize_file($mybb->input['file']);
-    $dbfile = $db->escape_string($file);
-
-    if($file)
-    {
-        $edits = array();
-
-        if(!$revert)
-        {
-            $query = $db->simple_select('patches',
-                                        '*',
-                                        "pfile='{$dbfile}' AND psize > 0");
-
-            while($row = $db->fetch_array($query))
-            {
-                $search = patches_normalize_search($row['psearch']);
-
-                $edits[] = array(
-                    'search' => $search,
-                    'before' => $row['pbefore'],
-                    'after' => $row['pafter'],
-                    'replace' => intval($row['preplace']),
-                    'patchid' => intval($row['pid']),
-                    'patchtitle' => $row['ptitle'],
-                    );
-            }
-        }
-
-        $PL or require_once PLUGINLIBRARY;
-
-        $result = $PL->edit_core('patches', $file, $edits, !$preview, $debug);
-
-        if($preview)
-        {
-            patches_page_preview($file, $debug);
-        }
-
-        else if($result === true)
-        {
-            // Update deactivated patches:
-            $db->update_query('patches',
-                              array('pdate' => 0),
-                              "pfile='{$dbfile}' AND psize=0");
-
-            // Update activated patches:
-            $update = array(
-                'psize' => $revert ? 1 : max(@filesize(MYBB_ROOT.$file), 1),
-                'pdate' => $revert ? 1 : max(@filemtime(MYBB_ROOT.$file), 1),
-                );
-
-            $db->update_query('patches',
-                              $update,
-                              "pfile='{$dbfile}' AND psize!=0");
-
-            flash_message($lang->patches_applied, 'success');
-            admin_redirect(PATCHES_URL);
-        }
-
-        else if(is_string($result))
-        {
-            flash_message($lang->patches_error_write, 'error');
-            admin_redirect(PATCHES_URL);
-        }
-
-        else
-        {
-            patches_page_debug($debug);
-        }
-    }
-
-    flash_message($lang->patches_error_file, 'error');
-    admin_redirect(PATCHES_URL);
-}
-
-/**
  * Preview patch
  */
 function patches_page_preview($file, $debug)
@@ -931,88 +1042,6 @@ function patches_page_preview($file, $debug)
     patches_output_tabs();
     patches_output_preview($file, $debug);
     $page->output_footer();
-}
-
-/**
- * Debug patch
- */
-function patches_page_debug($edits)
-{
-    global $mybb, $db, $lang, $page, $PL;
-    $PL or require_once PLUGINLIBRARY;
-
-    $lang->load('patches');
-
-    $errors = $lang->patches_debug;
-    $errors .= '<ul>';
-
-    foreach($edits as $edit)
-    {
-        if($edit['error'] && $edit['patchid'])
-        {
-            $editurl = $PL->url_append(PATCHES_URL,
-                                       array('mode' => 'edit',
-                                             'patch' => $edit['patchid']));
-
-            $errors .= "<li>"
-                ."<a href=\"{$editurl}\">"
-                .htmlspecialchars($edit['patchtitle'])
-                ."</a>: "
-                .htmlspecialchars($edit['error'])
-                ."</li>\n";
-        }
-    }
-
-    $errors .= '</ul>';
-
-    flash_message($errors, 'error');
-    admin_redirect(PATCHES_URL);
-}
-
-/**
- * Normalize search pattern.
- */
-function patches_normalize_search($search)
-{
-    $search = (array)$search;
-
-    $result = array();
-
-    foreach($search as $val)
-    {
-        $lines = explode("\n", $val);
-
-        foreach($lines as $line)
-        {
-            $line = trim($line);
-
-            if($line !== '')
-            {
-                $result[] = $line;
-            }
-        }
-    }
-
-    return $result;
-}
-
-/**
- * Normalize file name
- */
-function patches_normalize_file($file)
-{
-    $file = trim($file);
-    $file = realpath(MYBB_ROOT.$file);
-    $root = realpath(MYBB_ROOT);
-
-    if(strpos($file, $root.'/') === 0
-       || strpos($file, $root.'\\') === 0) // Windows :-(
-    {
-        return substr($file, strlen($root)+1);
-    }
-
-    // file outside MYBB_ROOT
-    return false;
 }
 
 /* --- End of file. --- */
