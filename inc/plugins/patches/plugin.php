@@ -396,6 +396,19 @@ function patches_output_preview($file, $search)
             $error = "<img src=\"styles/{$page->style}/images/icons/error.gif\" /> {$error}";
         }
 
+
+        if(!count($result['matches']) && $error)
+        {
+            $table->construct_cell($error);
+            $table->construct_row();
+            continue;
+        }
+
+        if(!isset($result['patchid']))
+        {
+            continue;
+        }
+
         $before = $after = '';
 
         if($result['before'])
@@ -425,8 +438,6 @@ function patches_output_preview($file, $search)
             $after = "<ins>{$ins}</ins>";
         }
 
-        $rows = 0;
-
         foreach((array)$result['matches'] as $match)
         {
             $rows++;
@@ -434,7 +445,7 @@ function patches_output_preview($file, $search)
             // Highlight the code.
             $code = $match[2];
             $start = 0;
-            $hlcode = array();
+            $snippets = array();
 
             foreach($result['search'] as $needle)
             {
@@ -467,12 +478,6 @@ function patches_output_preview($file, $search)
             }
 
             $table->construct_cell("{$error}<pre>{$before}{$code}{$after}</pre>");
-            $table->construct_row();
-        }
-
-        if(!$rows && $error)
-        {
-            $table->construct_cell($error);
             $table->construct_row();
         }
     }
@@ -984,7 +989,9 @@ function patches_page_edit()
                                array('search' => explode("\n", $search),
                                      'before' => $before,
                                      'after' => $after,
-                                     'replace' => $replace));
+                                     'replace' => $replace,
+                                     'patchid' => $patch,
+                                     'patchtitle' => $title));
     }
 
     $form = new Form($editurl, 'post');
