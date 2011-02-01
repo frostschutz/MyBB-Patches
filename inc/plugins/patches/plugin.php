@@ -253,6 +253,9 @@ function patches_output_preview($file, $search)
 
     $table = new Table;
 
+    $ins = '/* <strong style="color: green">+</strong> */ ';
+    $del = '/* <strong style="color: red">-</strong> /* ';
+
     foreach($debug as $result)
     {
         if($result['error'])
@@ -266,19 +269,29 @@ function patches_output_preview($file, $search)
 
         if($result['before'])
         {
-            $before = '<ins>'.htmlspecialchars($result['before']).'</ins>';
+            $before = '<ins>'
+                .$PL->_comment($ins, htmlspecialchars($result['before']))
+                .'</ins>';
         }
 
         if($result['after'])
         {
-            $after = '<ins>'.htmlspecialchars($result['after']).'</ins>';
+            $after = '<ins>'
+                .$PL->_comment($ins, htmlspecialchars($result['after']))
+                .'</ins>';
         }
 
         if(is_string($result['replace']))
         {
-            $after = '<ins>'.htmlspecialchars($result['replace']).'</ins>'
-                ."\n"
+            $after = '<ins>'
+                .$PL->_comment($ins, htmlspecialchars($result['replace']))
+                .'</ins>'
                 .$after;
+        }
+
+        else if($result['replace'] && !$result['after'])
+        {
+            $after = "<ins>{$ins}</ins>";
         }
 
         foreach((array)$result['matches'] as $match)
@@ -302,10 +315,11 @@ function patches_output_preview($file, $search)
 
             if($result['replace'] || is_string($result['replace']))
             {
+                $code = $PL->_comment($del, $code);
                 $code = "<del>{$code}</del>";
             }
 
-            $table->construct_cell("<pre>{$before}\n{$code}\n{$after}</pre>");
+            $table->construct_cell("<pre>{$before}{$code}{$after}</pre>");
             $table->construct_row();
         }
     }
@@ -420,11 +434,11 @@ function patches_page()
                                                 'file' => $row['pfile'],
                                                 'my_post_key' => $mybb->post_code));
 
-            $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong>');
+            $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong> '
+                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview}\" /></a>");
             $table->construct_cell("<a href=\"{$reverturl}\">{$lang->patches_revert}</a>",
                                    array('class' => 'align_center'));
-            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>
-                                    <a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview}\" /></a>",
+            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
             $table->construct_row();
