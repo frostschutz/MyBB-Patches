@@ -698,10 +698,10 @@ function patches_page()
                                                 'my_post_key' => $mybb->post_code));
 
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong> '
-                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview}\" /></a>");
-            $table->construct_cell("<a href=\"{$reverturl}\">{$lang->patches_revert}</a>",
+                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview_active}\" /></a>");
+            $table->construct_cell("<strong><a href=\"{$reverturl}\">{$lang->patches_revert}</a></strong>",
                                    array('class' => 'align_center'));
-            $table->construct_cell("<a href=\"{$applyurl}\">{$lang->patches_apply}</a>",
+            $table->construct_cell("<strong><a href=\"{$applyurl}\">{$lang->patches_apply}</a></strong>",
                                    array('class' => 'align_center',
                                          'width' => '15%'));
             $table->construct_row();
@@ -1040,7 +1040,9 @@ function patches_page_preview($file, $debug)
 
     patches_output_header();
     patches_output_tabs();
+
     patches_output_preview($file, $debug);
+
     $page->output_footer();
 }
 

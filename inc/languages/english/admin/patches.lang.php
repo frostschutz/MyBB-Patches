@@ -58,6 +58,7 @@ $l = array(
     'patches_nochange' => '-',
     'patches_patch' => 'Patch',
     'patches_preview' => 'Preview',
+    'patches_preview_active' => 'Preview active patches for this file',
     'patches_replace' => 'Replace',
     'patches_replace_desc' => 'If you want to replace or remove the matched code, say YES, otherwise NO.',
     'patches_revert' => 'Revert',
