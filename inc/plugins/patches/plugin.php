@@ -1077,13 +1077,6 @@ function patches_page_edit()
     $buttons[] = $form->generate_submit_button($lang->patches_save);
     $buttons[] = $form->generate_submit_button($lang->patches_preview,
                                                array('name' => 'preview'));
-
-    if(intval($mybb->input['patch']))
-    {
-        $buttons[] = $form->generate_submit_button($lang->patches_delete,
-                                                   array('name' => 'delete'));
-    }
-
     $buttons[] = $form->generate_submit_button($lang->patches_cancel,
                                                array('name' => 'cancel'));
 
