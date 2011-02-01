@@ -30,6 +30,7 @@ $l = array(
     'patches_apply' => 'Apply',
     'patches_before' => 'Insert Before',
     'patches_before_desc' => 'If you want to insert new code before the match, enter it here.',
+    'patches_cancel' => 'Cancel',
     'patches_controls' => 'Controls',
     'patches_cross' => 'FAIL',
     'patches_deactivate' => 'Deactivate',

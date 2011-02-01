@@ -813,6 +813,11 @@ function patches_page_edit()
 
     if($mybb->request_method == 'post')
     {
+        if($mybb->input['cancel'])
+        {
+            admin_redirect(PATCHES_URL);
+        }
+
         $patch = intval($mybb->input['patch']);
 
         if($patch && $mybb->input['delete'])
@@ -1022,6 +1027,9 @@ function patches_page_edit()
         $buttons[] = $form->generate_submit_button($lang->patches_delete,
                                                    array('name' => 'delete'));
     }
+
+    $buttons[] = $form->generate_submit_button($lang->patches_cancel,
+                                               array('name' => 'cancel'));
 
     $form->output_submit_wrapper($buttons);
     $form->end();
