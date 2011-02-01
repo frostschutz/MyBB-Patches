@@ -573,14 +573,14 @@ function patches_action_apply($revert=false, $preview=false)
 
         $PL or require_once PLUGINLIBRARY;
 
-        $result = $PL->edit_core('patches', $file, $edits, !$preview, $debug);
-
         if($preview)
         {
-            patches_page_preview($file, $debug);
+            patches_page_preview($file, $edits);
         }
 
-        else if($result === true)
+        $result = $PL->edit_core('patches', $file, $edits, false, $debug);
+
+        if($result === true)
         {
             // Update deactivated patches:
             $db->update_query('patches',
