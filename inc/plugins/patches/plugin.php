@@ -279,10 +279,6 @@ text-decoration: none;
 
         switch($mybb->input['mode'])
         {
-            case 'edit':
-                patches_page_edit();
-                break;
-
             case 'activate':
                 patches_action_activate();
                 break;
@@ -299,9 +295,17 @@ text-decoration: none;
                 patches_action_apply(true);
                 break;
 
+            case 'delete':
+                patches_action_delete();
+                break;
+
             case 'preview':
                 // indirect call to patches_page_preview():
                 patches_action_apply(false, true);
+                break;
+
+            case 'edit':
+                patches_page_edit();
                 break;
 
             default:
@@ -578,7 +582,7 @@ function patches_action_apply($revert=false, $preview=false)
             patches_page_preview($file, $edits);
         }
 
-        $result = $PL->edit_core('patches', $file, $edits, false, $debug);
+        $result = $PL->edit_core('patches', $file, $edits, true, $debug);
 
         if($result === true)
         {
@@ -653,6 +657,33 @@ function patches_action_debug($edits)
     admin_redirect(PATCHES_URL);
 }
 
+/**
+ * Delete patch
+ */
+function patches_action_delete()
+{
+    global $mybb, $db, $lang;
+
+    $lang->load('patches');
+
+    if(!verify_post_check($mybb->input['my_post_key']))
+    {
+        flash_message($lang->patches_error_key, 'error');
+        admin_redirect(PATCHES_URL);
+    }
+
+    $patch = intval($mybb->input['patch']);
+
+    if($patch)
+    {
+        // delete patch
+        $db->delete_query('patches', "pid={$patch}");
+        flash_message($lang->patches_deleted, 'success');
+    }
+
+    admin_redirect(PATCHES_URL);
+}
+
 /* --- Page functions: --- */
 
 /**
@@ -711,9 +742,22 @@ function patches_page()
                                    array('mode' => 'edit',
                                          'patch' => $row['pid']));
 
+        $delete = '';
+
+        if(!$row['psize'] && !$row['pdate'])
+        {
+            $deleteurl = $PL->url_append(PATCHES_URL,
+                                         array('mode' => 'delete',
+                                               'patch' => $row['pid'],
+                                               'my_post_key' => $mybb->post_code));
+            $delete = " <a href=\"{$deleteurl}\"><img src=\"styles/{$page->style}/images/icons/delete.gif\" alt=\"{$lang->patches_delete}\" title=\"{$lang->patches_delete}\" /></a>";
+        }
+
         $table->construct_cell("<div style=\"padding-left: 40px;\"><a href=\"{$editurl}\">"
                                .htmlspecialchars($row['ptitle'])
-                               .'</a><br />'
+                               .'</a>'
+                               .$delete
+                               .'<br />'
                                .htmlspecialchars($row['pdescription'])
                                .'</div>');
 
@@ -819,14 +863,6 @@ function patches_page_edit()
         }
 
         $patch = intval($mybb->input['patch']);
-
-        if($patch && $mybb->input['delete'])
-        {
-            // delete patch
-            $db->delete_query('patches', "pid={$patch}");
-            flash_message($lang->patches_deleted, 'success');
-            admin_redirect(PATCHES_URL);
-        }
 
         // validate input
 
