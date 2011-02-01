@@ -363,8 +363,10 @@ function patches_output_header()
  */
 function patches_output_preview($file, $search)
 {
-    global $page, $PL;
+    global $page, $lang, $PL;
     $PL or require_once PLUGINLIBRARY;
+
+    $lang->load('patches');
 
     $PL->edit_core('patches', $file, $search,
                    false, // do not apply
@@ -482,7 +484,10 @@ function patches_output_preview($file, $search)
         }
     }
 
-    $table->output('Preview changes to '.htmlspecialchars($file));
+    $preview_file = $lang->sprintf($lang->patches_preview_file,
+                                   htmlspecialchars($file));
+
+    $table->output($preview_file);
 }
 
 /* --- Actions: --- */
