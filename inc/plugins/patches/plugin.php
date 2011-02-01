@@ -430,22 +430,35 @@ function patches_output_preview($file, $search)
         foreach((array)$result['matches'] as $match)
         {
             $rows++;
-            $code = htmlspecialchars($match[2]);
 
-            // Highlight the code. Based on PluginLibrary reverse search code.
-            $start = strlen($code);
+            // Highlight the code.
+            $code = $match[2];
+            $start = 0;
+            $hlcode = array();
 
-            foreach(array_reverse($result['search']) as $needle)
+            foreach($result['search'] as $needle)
             {
-                $needle = htmlspecialchars($needle);
-                $start = strrpos($code, $needle, -strlen($code)+$start-strlen($needle));
+                $oldstart = $start;
 
-                $code = substr($code, 0, $start)
-                    .'<strong style="background:#ff0">'
-                    .substr($code, $start, strlen($needle))
-                    .'</strong>'
-                    .substr($code, $start+strlen($needle));
+                // Find the needle.
+                $start = strpos($code, $needle, $oldstart);
+
+                // Code between previous and current needle
+                $snippets[] = htmlspecialchars(substr($code, $oldstart, $start-$oldstart));
+
+                // Highlight the needle
+                $snippets[] = '<strong style="background:#ff0">'
+                    .htmlspecialchars(substr($code, $start, strlen($needle)))
+                    .'</strong>';
+
+                // Continue after needle
+                $start += strlen($needle);
             }
+
+            // Code after the last needle
+            $snippets[] = htmlspecialchars(substr($code, $start));
+
+            $code = implode('', $snippets);
 
             if($result['replace'] || is_string($result['replace']))
             {
