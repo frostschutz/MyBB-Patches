@@ -1206,18 +1206,8 @@ function patches_page_export()
 
             if(count($patches))
             {
-                $xml = $PL->xml_export($patches, 'MyBB Patches exported {time}');
-
-                header('Content-Type: application/xml');
-                header("Expires: Sun, 20 Feb 2011 13:47:47 GMT");
-                header("Last-Modified: ".gmdate('D, d M Y H:i:s T'));
-                header("Pragma: no-cache");
-                header('Content-Disposition: attachment; filename="'.urlencode($filename).'"');
-                header('Content-Length: '.strlen($xml));
-
-                echo $xml;
-
-                exit;
+                $PL->xml_export($patches, $filename, 'MyBB Patches exported {time}');
+                // exit on success
             }
         }
 
