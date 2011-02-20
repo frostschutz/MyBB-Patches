@@ -55,7 +55,7 @@ function patches_info()
         'website'       => 'http://mods.mybb.com/view/patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
-        'version'       => '1.1',
+        'version'       => '1.2',
         'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
         'compatibility' => '16*',
     );
@@ -173,7 +173,7 @@ function patches_depend()
 
     $PL or require_once PLUGINLIBRARY;
 
-    if($PL->version < 2)
+    if($PL->version < 3)
     {
         flash_message($lang->patches_PL_old, 'error');
         admin_redirect("index.php?module=config-plugins");
@@ -306,6 +306,14 @@ text-decoration: none;
 
             case 'edit':
                 patches_page_edit();
+                break;
+
+            case 'import':
+                patches_page_import();
+                break;
+
+            case 'export':
+                patches_page_export();
                 break;
 
             default:
@@ -720,6 +728,8 @@ function patches_page()
     patches_output_header();
     patches_output_tabs();
 
+    $exportids = array();
+
     $table = new Table;
     $table->construct_header($lang->patches_patch);
     $table->construct_header($lang->patches_controls,
@@ -819,6 +829,8 @@ function patches_page()
         {
             $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
                                    array('class' => 'align_center'));
+
+            $exportids[] = $row['pid'];
         }
 
         else if(intval($row['psize']) == 0)
@@ -837,10 +849,17 @@ function patches_page()
     }
 
     $createurl = $PL->url_append(PATCHES_URL, array('mode' => 'edit'));
+    $importurl = $PL->url_append(PATCHES_URL, array('mode' => 'import'));
+    $exporturl = $PL->url_append(PATCHES_URL, array('mode' => 'export',
+                                                    'patch' => implode(",", $exportids)));
 
-    $table->construct_cell("<a href=\"{$createurl}\">{$lang->patches_new}</a>",
-                           array('colspan' => 5,
-                                 'class' => 'align_center'));
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/custom.gif\" /> <a href=\"{$createurl}\">{$lang->patches_new}</a> ",
+                           array('class' => 'align_center'));
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/increase.gif\" /> <a href=\"{$importurl}\">{$lang->patches_import}</a> ",
+                           array('class' => 'align_center'));
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/decrease.gif\" /> <a href=\"{$exporturl}\">{$lang->patches_export}</a>",
+                           array('class' => 'align_center'));
+
     $table->construct_row();
 
     $table->output($lang->patches);
@@ -1104,6 +1123,40 @@ function patches_page_preview($file, $debug)
     patches_output_tabs();
 
     patches_output_preview($file, $debug);
+
+    $page->output_footer();
+}
+
+/**
+ * Import patch
+ */
+function patches_page_import()
+{
+    global $lang, $page, $PL;
+
+    $page->add_breadcrumb_item($lang->patches_import, PATCHES_URL);
+
+    patches_output_header();
+    patches_output_tabs();
+
+    echo "Import";
+
+    $page->output_footer();
+}
+
+/**
+ * Export patch
+ */
+function patches_page_export()
+{
+    global $lang, $page, $PL;
+
+    $page->add_breadcrumb_item($lang->patches_export, PATCHES_URL);
+
+    patches_output_header();
+    patches_output_tabs();
+
+    echo "Export";
 
     $page->output_footer();
 }
