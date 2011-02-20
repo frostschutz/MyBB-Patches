@@ -1248,7 +1248,6 @@ function patches_page_export()
     $table = new Table;
 
     $table->construct_header($lang->patches);
-    $table->construct_header('');
 
     $form = new Form($exporturl, "post");
 
