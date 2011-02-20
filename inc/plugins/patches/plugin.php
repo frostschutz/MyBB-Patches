@@ -1149,14 +1149,135 @@ function patches_page_import()
  */
 function patches_page_export()
 {
-    global $lang, $page, $PL;
+    global $mybb, $db, $lang, $page, $PL;
 
-    $page->add_breadcrumb_item($lang->patches_export, PATCHES_URL);
+    $PL or require_once PLUGINLIBRARY;
+
+    $exporturl = $PL->url_append(PATCHES_URL, array('mode' => 'export'));
+
+    $page->add_breadcrumb_item($lang->patches_export, $exporturl);
+
+    if($mybb->request_method == 'post')
+    {
+        if($mybb->input['cancel'])
+        {
+            admin_redirect(PATCHES_URL);
+        }
+
+        if($mybb->input['filename'])
+        {
+            $filename = $mybb->input['filename'];
+            $filename = str_replace('/', '_', $filename);
+            $filename = str_replace('\\', '_', $filename);
+            $filename = str_replace('.', '_', $filename);
+            $filename = "patches-{$filename}.xml";
+        }
+
+        else
+        {
+            $filename = "patches.xml";
+        }
+
+        if($mybb->input['patches'])
+        {
+            $where = array();
+
+            foreach((array)$mybb->input['patches'] as $pid)
+            {
+                $where[] = $db->escape_string(strval($pid));
+            }
+
+            $where = implode("','", $where);
+            $where = "pid IN ('{$where}')";
+
+            $query = $db->simple_select("patches",
+                                        "pfile,ptitle,pdescription,pbefore,pafter,preplace",
+                                        $where,
+                                        array('order_by' => 'pfile,ptitle,pid'));
+
+            $patches = array();
+
+            while($row = $db->fetch_array($query))
+            {
+                $file = $row['pfile'];
+                unset($row['pfile']);
+                $patches[$file][] = $row;
+            }
+
+            if(count($patches))
+            {
+                $xml = $PL->xml_export($patches, 'MyBB Patches exported {time}');
+
+                header('Content-Type: application/xml');
+                header("Expires: Sun, 20 Feb 2011 13:47:47 GMT");
+                header("Last-Modified: ".gmdate('D, d M Y H:i:s T'));
+                header("Pragma: no-cache");
+                header('Content-Disposition: attachment; filename="'.urlencode($filename).'"');
+                header('Content-Length: '.strlen($xml));
+
+                echo $xml;
+
+                exit;
+            }
+        }
+
+        flash_message($lang->patches_export_error, 'error');
+    }
+
+    else if($mybb->input['patch'])
+    {
+        $patches = array();
+
+        foreach(explode(",", $mybb->input['patch']) as $pid)
+        {
+            $patches[] = htmlspecialchars($pid);
+        }
+    }
 
     patches_output_header();
     patches_output_tabs();
 
-    echo "Export";
+    // Build list of patches
+    $patches_selects = array();
+    $currentfile = '';
+
+    $query = $db->simple_select('patches', 'pfile,ptitle,pid', '',
+                                array('order_by' => 'pfile,ptitle,pid'));
+
+    while($row = $db->fetch_array($query))
+    {
+        if($currentfile != $row['pfile'])
+        {
+            $currentfile = $row['pfile'];
+            $patches_selects["file{$row['pid']}"] = '&nbsp;&nbsp;&nbsp;--- '.htmlspecialchars($currentfile).' ---';
+        }
+
+        $patches_selects[$row['pid']] = htmlspecialchars($row['ptitle']);
+    }
+
+    $table = new Table;
+
+    $table->construct_header($lang->patches);
+    $table->construct_header('');
+
+    $form = new Form($exporturl, "post");
+
+    $table->construct_cell($lang->patches_export_select
+                           .'<br /><br />'
+                           .$form->generate_select_box("patches[]", $patches_selects, $patches, array('multiple' => true, 'id' => 'patches_select')));
+    $table->construct_row();
+
+    $table->construct_cell($lang->patches_export_filename
+                           .'<br /><br />'
+                           .$form->generate_text_box('filename', $mybb->input['filename']));
+    $table->construct_row();
+
+    $table->output($lang->patches_export_caption);
+
+    $buttons[] = $form->generate_submit_button($lang->patches_export_button);
+    $buttons[] = $form->generate_submit_button($lang->patches_cancel,
+                                               array('name' => 'cancel'));
+    $form->output_submit_wrapper($buttons);
 
     $page->output_footer();
 }
