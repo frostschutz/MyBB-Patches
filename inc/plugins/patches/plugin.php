@@ -1191,7 +1191,7 @@ function patches_page_export()
             $where = "pid IN ('{$where}')";
 
             $query = $db->simple_select("patches",
-                                        "pfile,ptitle,pdescription,pbefore,pafter,preplace",
+                                        "pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace",
                                         $where,
                                         array('order_by' => 'pfile,ptitle,pid'));
 
