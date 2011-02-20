@@ -1132,14 +1132,141 @@ function patches_page_preview($file, $debug)
  */
 function patches_page_import()
 {
-    global $lang, $page, $PL;
+    global $mybb, $db, $lang, $page, $PL;
 
-    $page->add_breadcrumb_item($lang->patches_import, PATCHES_URL);
+    $importurl = $PL->url_append(PATCHES_URL, array('mode' => 'import'));
+
+    $page->add_breadcrumb_item($lang->patches_import, $importurl);
+
+    if($mybb->request_method == 'post')
+    {
+        if($mybb->input['cancel'])
+        {
+            admin_redirect(PATCHES_URL);
+        }
+
+        if(@is_uploaded_file($_FILES['patches']['tmp_name']))
+        {
+            $contents = @file_get_contents($_FILES['patches']['tmp_name']);
+            @unlink($_FILES['patches']['tmp_name']);
+
+            if($contents)
+            {
+                $contents = $PL->xml_import($contents);
+                $inserts = array();
+                $errors = 0;
+
+                if(is_array($contents))
+                {
+                    foreach($contents as $pfile => $patches)
+                    {
+                        if(!is_string($pfile) || !is_array($patches))
+                        {
+                            $errors++;
+                            continue;
+                        }
+
+                        $pfile = patches_normalize_file($pfile);
+
+                        if(!$pfile)
+                        {
+                            $errors++;
+                            continue;
+                        }
+
+                        foreach($patches as $patch)
+                        {
+                            if(!is_string($patch['ptitle'])
+                               || !strlen($patch['ptitle'])
+                               || !is_string($patch['pdescription'])
+                               || !is_string($patch['psearch'])
+                               || !strlen($patch['psearch'])
+                               || !is_string($patch['pbefore'])
+                               || !is_string($patch['pafter'])
+                               || !is_bool($patch['preplace'])
+                               || (!strlen($patch['pbefore'])
+                                   && !strlen($patch['pafter'])
+                                   && !$patch['preplace']))
+                            {
+                                $errors++;
+                                continue;
+                            }
+
+                            $search = patches_normalize_search($patch['psearch']);
+
+                            if(!$search)
+                            {
+                                $errors++;
+                                continue;
+                            }
+
+                            $search = implode("\n", $search);
+
+                            $inserts[] = array(
+                                'pfile' => $db->escape_string($pfile),
+                                'psize' => 0,
+                                'pdate' => 0,
+                                'ptitle' => $db->escape_string($patch['ptitle']),
+                                'pdescription' => $db->escape_string($patch['pdescription']),
+                                'psearch' => $db->escape_string($search),
+                                'pbefore' => $db->escape_string($patch['pbefore']),
+                                'pafter' => $db->escape_string($patch['pafter']),
+                                'preplace' => ($patch['preplace'] ? '1' : '0'),
+                                );
+                        }
+                    }
+
+                    if(count($inserts))
+                    {
+                        $db->insert_query_multiple('patches', $inserts);
+
+                        $success = $lang->sprintf($lang->patches_import_success,
+                                                  count($inserts));
+
+                        if($errors)
+                        {
+                            $success .= $lang->sprintf($lang->patches_import_errors,
+                                                       $errors);
+                        }
+
+                        flash_message($success, 'success');
+                        admin_redirect(PATCHES_URL);
+                    }
+                }
+            }
+        }
+
+        if(is_array($inserts) || $errors)
+        {
+            flash_message($lang->patches_import_badfile, 'error');
+        }
+
+        else
+        {
+            flash_message($lang->patches_import_nofile, 'error');
+        }
+    }
 
     patches_output_header();
     patches_output_tabs();
 
-    echo "Import";
+    $table = new Table;
+
+    $table->construct_header($lang->patches);
+
+    $form = new Form($importurl, 'post', '', 1);
+
+    $table->construct_cell($lang->patches_import_file
+                           .'<br /><br />'
+                           .$form->generate_file_upload_box("patches"));
+    $table->construct_row();
+
+    $table->output($lang->patches_import_caption);
+
+    $buttons[] = $form->generate_submit_button($lang->patches_import_button);
+    $buttons[] = $form->generate_submit_button($lang->patches_cancel,
+                                               array('name' => 'cancel'));
+    $form->output_submit_wrapper($buttons);
 
     $page->output_footer();
 }
@@ -1201,6 +1328,7 @@ function patches_page_export()
             {
                 $file = $row['pfile'];
                 unset($row['pfile']);
+                $row['preplace'] = $row['preplace'] && 1; // stupid
                 $patches[$file][] = $row;
             }
 
