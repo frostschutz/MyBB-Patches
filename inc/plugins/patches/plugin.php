@@ -55,7 +55,7 @@ function patches_info()
         'website'       => 'http://mods.mybb.com/view/patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
-        'version'       => '1.2',
+        'version'       => '1.3',
         'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
         'compatibility' => '16*',
     );
