@@ -231,7 +231,7 @@ function patches_normalize_file($file)
 /**
  * Add Patches tab on the plugins page.
  */
-function patches_tabs_start($arguments)
+function patches_tabs_start(&$arguments)
 {
     global $mybb, $lang;
 
