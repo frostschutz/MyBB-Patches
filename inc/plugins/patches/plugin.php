@@ -235,10 +235,10 @@ function patches_tabs_start(&$arguments)
 {
     global $mybb, $lang;
 
-    $lang->load('patches');
-
     if($mybb->input['module'] == 'config-plugins')
     {
+        $lang->load('patches');
+
         $arguments['patches'] = array('title' => $lang->patches,
                                       'description' => $lang->patches_tab_desc,
                                       'link' => PATCHES_URL);
