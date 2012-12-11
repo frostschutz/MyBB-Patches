@@ -9,6 +9,11 @@ Modifications to files can be applied and reverted. The plugin tracks the
 modified files by size and timestamp, and displays the status of each patch
 for each file.
 
+Update instructions
+-------------------
+
+Please deactivate and activate the plugin after uploading the new files.
+
 Installation instructions
 -------------------------
 

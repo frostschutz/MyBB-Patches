@@ -55,7 +55,7 @@ function patches_info()
         'website'       => 'http://mods.mybb.com/view/patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
-        'version'       => '1.3',
+        'version'       => '1.4',
         'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
         'compatibility' => '16*',
     );
@@ -116,6 +116,8 @@ function patches_install()
                 pbefore TEXT,
                 pafter TEXT,
                 preplace INTEGER NOT NULL,
+                pmulti INTEGER NOT NULL,
+                pnone INTEGER NOT NULL,
                 PRIMARY KEY (pid)
             ) {$collation}");
 
@@ -143,7 +145,20 @@ function patches_uninstall()
  */
 function patches_activate()
 {
+    global $db;
+
     patches_depend();
+
+    // Update database table:
+    if(!$db->field_exists('pmulti', 'patches'))
+    {
+        $db->add_column('patches', 'pmulti', 'INTEGER NOT NULL');
+    }
+
+    if(!$db->field_exists('pnone', 'patches'))
+    {
+        $db->add_column('patches', 'pnone', 'INTEGER NOT NULL');
+    }
 }
 
 /**
@@ -173,7 +188,7 @@ function patches_depend()
 
     $PL or require_once PLUGINLIBRARY;
 
-    if($PL->version < 3)
+    if($PL->version < 11)
     {
         flash_message($lang->patches_PL_old, 'error');
         admin_redirect("index.php?module=config-plugins");
@@ -515,7 +530,7 @@ function patches_action_activate()
         admin_redirect(PATCHES_URL);
     }
 
-    $patch = intval($mybb->input['patch']);
+    $patch = (int)$mybb->input['patch'];
 
     if($patch > 0)
     {
@@ -547,7 +562,7 @@ function patches_action_deactivate()
         admin_redirect(PATCHES_URL);
     }
 
-    $patch = intval($mybb->input['patch']);
+    $patch = (int)$mybb->input['patch'];
 
     if($patch > 0)
     {
@@ -599,8 +614,10 @@ function patches_action_apply($revert=false, $preview=false)
                     'search' => $search,
                     'before' => $row['pbefore'],
                     'after' => $row['pafter'],
-                    'replace' => intval($row['preplace']),
-                    'patchid' => intval($row['pid']),
+                    'replace' => (int)$row['preplace'],
+                    'multi' => (int)$row['pmulti'],
+                    'none' => (int)$row['pnone'],
+                    'patchid' => (int)$row['pid'],
                     'patchtitle' => $row['ptitle'],
                     );
             }
@@ -703,7 +720,7 @@ function patches_action_delete()
         admin_redirect(PATCHES_URL);
     }
 
-    $patch = intval($mybb->input['patch']);
+    $patch = (int)$mybb->input['patch'];
 
     if($patch)
     {
@@ -824,8 +841,8 @@ function patches_page()
                                    array('class' => 'align_center'));
         }
 
-        else if(intval($row['psize']) === @filesize(MYBB_ROOT.$file) &&
-                intval($row['pdate']) === @filemtime(MYBB_ROOT.$file))
+        else if((int)$row['psize'] === @filesize(MYBB_ROOT.$file) &&
+                (int)$row['pdate'] === @filemtime(MYBB_ROOT.$file))
         {
             $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
                                    array('class' => 'align_center'));
@@ -833,7 +850,7 @@ function patches_page()
             $exportids[] = $row['pid'];
         }
 
-        else if(intval($row['psize']) == 0)
+        else if((int)$row['psize'] == 0)
         {
             $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.gif\" alt=\"{$lang->patches_warning}\" />",
                                    array('class' => 'align_center'));
@@ -895,7 +912,7 @@ function patches_page_edit()
 
     $lang->load('patches');
 
-    $patch = intval($mybb->input['patch']);
+    $patch = (int)$mybb->input['patch'];
 
     if($mybb->request_method == 'post')
     {
@@ -904,7 +921,7 @@ function patches_page_edit()
             admin_redirect(PATCHES_URL);
         }
 
-        $patch = intval($mybb->input['patch']);
+        $patch = (int)$mybb->input['patch'];
 
         // validate input
 
@@ -938,7 +955,9 @@ function patches_page_edit()
 
         $before = trim($mybb->input['pbefore']);
         $after = trim($mybb->input['pafter']);
-        $replace = intval($mybb->input['preplace']);
+        $replace = (int)$mybb->input['preplace'];
+        $multi = (int)$mybb->input['pmulti'];
+        $none = (int)$mybb->input['pnone'];
 
         if(!($before || $after || $replace))
         {
@@ -954,6 +973,8 @@ function patches_page_edit()
                 'pbefore' => $db->escape_string($before),
                 'pafter' => $db->escape_string($after),
                 'preplace' => $replace,
+                'pmulti' => $multi,
+                'pnone' => $none,
                 'pfile' => $db->escape_string($file),
                 'pdate' => 1,
                 );
@@ -984,7 +1005,7 @@ function patches_page_edit()
     {
         // fetch info of existing patch
         $query = $db->simple_select('patches',
-                                    'pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace',
+                                    'pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace,pmulti,pnone',
                                     "pid='{$patch}'");
         $row = $db->fetch_array($query);
 
@@ -1014,6 +1035,8 @@ function patches_page_edit()
                                      'before' => $before,
                                      'after' => $after,
                                      'replace' => $replace,
+                                     'multi' => $multi,
+                                     'none' => $none,
                                      'patchid' => $patch,
                                      'patchtitle' => $title));
     }
@@ -1022,7 +1045,7 @@ function patches_page_edit()
     $form_container = new FormContainer('Edit Patch');
 
     echo $form->generate_hidden_field('patch',
-                                      intval($mybb->input['patch']),
+                                      (int)$mybb->input['patch'],
                                       array('id' => 'patch'));
 
     $form_container->output_row(
@@ -1087,7 +1110,9 @@ function patches_page_edit()
         );
 
     // set to 0, otherwise the yes no defaults to yes...
-    $mybb->input['preplace'] = intval($mybb->input['preplace']);
+    $mybb->input['preplace'] = (int)$mybb->input['preplace'];
+    $mybb->input['pmulti'] = (int)$mybb->input['pmulti'];
+    $mybb->input['pnone'] = (int)$mybb->input['pnone'];
 
     $form_container->output_row(
         $lang->patches_replace,
@@ -1095,6 +1120,20 @@ function patches_page_edit()
         $form->generate_yes_no_radio('preplace',
                                      $mybb->input['preplace']),
         'preplace');
+
+    $form_container->output_row(
+        $lang->patches_multi,
+        $lang->patches_multi_desc,
+        $form->generate_yes_no_radio('pmulti',
+                                     $mybb->input['pmulti']),
+        'pmulti');
+
+    $form_container->output_row(
+        $lang->patches_none,
+        $lang->patches_none_desc,
+        $form->generate_yes_no_radio('pnone',
+                                     $mybb->input['pnone']),
+        'pnone');
 
     $form_container->end();
 
@@ -1184,6 +1223,7 @@ function patches_page_import()
                                || !is_string($patch['pbefore'])
                                || !is_string($patch['pafter'])
                                || !is_bool($patch['preplace'])
+                               // multi and none were added later - ignore
                                || (!strlen($patch['pbefore'])
                                    && !strlen($patch['pafter'])
                                    && !$patch['preplace']))
@@ -1212,6 +1252,8 @@ function patches_page_import()
                                 'pbefore' => $db->escape_string($patch['pbefore']),
                                 'pafter' => $db->escape_string($patch['pafter']),
                                 'preplace' => ($patch['preplace'] ? '1' : '0'),
+                                'pmulti' => ($patch['pmulti'] ? '1' : '0'),
+                                'pnone' => ($patch['pnone'] ? '1' : '0'),
                                 );
                         }
                     }
@@ -1311,14 +1353,14 @@ function patches_page_export()
 
             foreach((array)$mybb->input['patches'] as $pid)
             {
-                $where[] = $db->escape_string(strval($pid));
+                $where[] = $db->escape_string((string)$pid);
             }
 
             $where = implode("','", $where);
             $where = "pid IN ('{$where}')";
 
             $query = $db->simple_select("patches",
-                                        "pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace",
+                                        "pfile,ptitle,pdescription,psearch,pbefore,pafter,preplace,pmulti,pnone",
                                         $where,
                                         array('order_by' => 'pfile,ptitle,pid'));
 
@@ -1329,6 +1371,8 @@ function patches_page_export()
                 $file = $row['pfile'];
                 unset($row['pfile']);
                 $row['preplace'] = $row['preplace'] && 1; // stupid
+                $row['pmulti'] = $row['pmulti'] && 1;
+                $row['pnone'] = $row['pnone'] && 1;
                 $patches[$file][] = $row;
             }
 
