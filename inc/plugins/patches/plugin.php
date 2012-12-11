@@ -132,7 +132,27 @@ function patches_install()
  */
 function patches_uninstall()
 {
-    global $db;
+    global $mybb, $db, $lang;
+    global $PL;
+
+    patches_depend();
+
+    // Confirmation step.
+    if(!$mybb->input['confirm'])
+    {
+        $link = $PL->url_append('index.php', array(
+                                    'module' => 'config-plugins',
+                                    'action' => 'deactivate',
+                                    'uninstall' => '1',
+                                    'plugin' => 'patches',
+                                    'my_post_key' => $mybb->post_code,
+                                    'confirm' => '1',
+                                    ));
+
+        flash_message("{$lang->patches_plugin_uninstall} <a href=\"{$link}\">{$lang->patches_plugin_uninstall_confirm}</a>", "error");
+        admin_redirect("index.php?module=config-plugins");
+    }
+
 
     if($db->table_exists('patches'))
     {
