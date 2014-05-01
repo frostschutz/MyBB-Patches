@@ -55,7 +55,7 @@ function patches_info()
         'website'       => 'http://mods.mybb.com/view/patches',
         'author'        => 'Andreas Klauer',
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
-        'version'       => '1.4',
+        'version'       => '1.5',
         'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
         'compatibility' => '16*',
     );
@@ -768,11 +768,11 @@ function patches_page()
     $exportids = array();
 
     $table = new Table;
-    $table->construct_header($lang->patches_patch);
     $table->construct_header($lang->patches_controls,
-                             array('colspan' => 3,
-                                   'class' => 'align_center',
-                                   'width' => '30%'));
+                             array('colspan' => 2,
+                                   'class' => 'align_center'));
+    $table->construct_header($lang->patches_patch,
+                             array('width' => '100%'));
 
     $query = $db->simple_select('patches', 'pid,pfile,psize,pdate,ptitle,pdescription', '',
                                 array('order_by' => 'pfile,ptitle,pid'));
@@ -798,14 +798,70 @@ function patches_page()
                                                 'file' => $row['pfile'],
                                                 'my_post_key' => $mybb->post_code));
 
-            $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong> '
-                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview_active}\" /></a>");
             $table->construct_cell("<strong><a href=\"{$reverturl}\">{$lang->patches_revert}</a></strong>",
-                                   array('class' => 'align_center'));
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
             $table->construct_cell("<strong><a href=\"{$applyurl}\">{$lang->patches_apply}</a></strong>",
                                    array('class' => 'align_center',
-                                         'width' => '15%'));
+                                         'style' => 'white-space: nowrap;'));
+            $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong> '
+                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview_active}\" /></a>");
             $table->construct_row();
+        }
+
+        if(!$row['psize'])
+        {
+            $activateurl = $PL->url_append(PATCHES_URL,
+                                           array('mode' => 'activate',
+                                                 'patch' => $row['pid'],
+                                                 'my_post_key' => $mybb->post_code));
+
+            $table->construct_cell("<a href=\"{$activateurl}\">{$lang->patches_activate}</a>",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
+        }
+
+        else
+        {
+            $deactivateurl = $PL->url_append(PATCHES_URL,
+                                             array('mode' => 'deactivate',
+                                                   'patch' => $row['pid'],
+                                                   'my_post_key' => $mybb->post_code));
+
+            $table->construct_cell("<a href=\"{$deactivateurl}\">{$lang->patches_deactivate}</a>",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
+        }
+
+        if(!$row['psize'] && !$row['pdate'])
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/no_change.gif\" alt=\"{$lang->patches_nochange}\" />",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
+        }
+
+        else if((int)$row['psize'] === @filesize(MYBB_ROOT.$file) &&
+                (int)$row['pdate'] === @filemtime(MYBB_ROOT.$file))
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
+
+            $exportids[] = $row['pid'];
+        }
+
+        else if((int)$row['psize'] == 0)
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.gif\" alt=\"{$lang->patches_warning}\" />",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
+        }
+
+        else
+        {
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/cross.gif\" alt=\"{$lang->patches_cross}\" />",
+                                   array('class' => 'align_center',
+                                         'style' => 'white-space: nowrap;'));
         }
 
         $editurl = $PL->url_append(PATCHES_URL,
@@ -831,57 +887,6 @@ function patches_page()
                                .htmlspecialchars($row['pdescription'])
                                .'</div>');
 
-        if(!$row['psize'])
-        {
-            $activateurl = $PL->url_append(PATCHES_URL,
-                                           array('mode' => 'activate',
-                                                 'patch' => $row['pid'],
-                                                 'my_post_key' => $mybb->post_code));
-
-            $table->construct_cell("<a href=\"{$activateurl}\">{$lang->patches_activate}</a>",
-                                   array('class' => 'align_center',
-                                         'width' => '15%'));
-        }
-
-        else
-        {
-            $deactivateurl = $PL->url_append(PATCHES_URL,
-                                             array('mode' => 'deactivate',
-                                                   'patch' => $row['pid'],
-                                                   'my_post_key' => $mybb->post_code));
-
-            $table->construct_cell("<a href=\"{$deactivateurl}\">{$lang->patches_deactivate}</a>",
-                                   array('class' => 'align_center',
-                                         'width' => '15%'));
-        }
-
-        if(!$row['psize'] && !$row['pdate'])
-        {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/no_change.gif\" alt=\"{$lang->patches_nochange}\" />",
-                                   array('class' => 'align_center'));
-        }
-
-        else if((int)$row['psize'] === @filesize(MYBB_ROOT.$file) &&
-                (int)$row['pdate'] === @filemtime(MYBB_ROOT.$file))
-        {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
-                                   array('class' => 'align_center'));
-
-            $exportids[] = $row['pid'];
-        }
-
-        else if((int)$row['psize'] == 0)
-        {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.gif\" alt=\"{$lang->patches_warning}\" />",
-                                   array('class' => 'align_center'));
-        }
-
-        else
-        {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/cross.gif\" alt=\"{$lang->patches_cross}\" />",
-                                   array('class' => 'align_center'));
-        }
-
         $table->construct_row();
     }
 
@@ -890,11 +895,13 @@ function patches_page()
     $exporturl = $PL->url_append(PATCHES_URL, array('mode' => 'export',
                                                     'patch' => implode(",", $exportids)));
 
-    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/custom.gif\" /> <a href=\"{$createurl}\">{$lang->patches_new}</a> ",
-                           array('class' => 'align_center'));
     $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/increase.gif\" /> <a href=\"{$importurl}\">{$lang->patches_import}</a> ",
-                           array('class' => 'align_center'));
+                           array('class' => 'align_center',
+                                 'style' => 'white-space: nowrap;'));
     $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/decrease.gif\" /> <a href=\"{$exporturl}\">{$lang->patches_export}</a>",
+                           array('class' => 'align_center',
+                                 'style' => 'white-space: nowrap;'));
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/custom.gif\" /> <a href=\"{$createurl}\">{$lang->patches_new}</a> ",
                            array('class' => 'align_center'));
 
     $table->construct_row();
