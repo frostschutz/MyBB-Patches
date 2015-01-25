@@ -57,7 +57,7 @@ function patches_info()
         'authorsite'    => 'mailto:Andreas.Klauer@metamorpher.de',
         'version'       => '1.5',
         'guid'          => '4e29f86eedf8c26540324e2396f8b43f',
-        'compatibility' => '16*',
+        'compatibility' => '18*',
     );
 }
 
@@ -438,7 +438,7 @@ function patches_output_preview($file, $search)
                     .htmlspecialchars($result['patchtitle'])."</a>: {$error}";
             }
 
-            $error = "<img src=\"styles/{$page->style}/images/icons/error.gif\" /> {$error}";
+            $error = "<img src=\"styles/{$page->style}/images/icons/error.png\" /> {$error}";
         }
 
 
@@ -805,7 +805,7 @@ function patches_page()
                                    array('class' => 'align_center',
                                          'style' => 'white-space: nowrap;'));
             $table->construct_cell('<strong>'.htmlspecialchars($row['pfile']).'</strong> '
-                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.gif\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview_active}\" /></a>");
+                                   ."<a href=\"{$previewurl}\"><img src=\"styles/{$page->style}/images/icons/find.png\" alt=\"{$lang->patches_preview}\" title=\"{$lang->patches_preview_active}\" /></a>");
             $table->construct_row();
         }
 
@@ -835,7 +835,7 @@ function patches_page()
 
         if(!$row['psize'] && !$row['pdate'])
         {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/no_change.gif\" alt=\"{$lang->patches_nochange}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/no_change.png\" alt=\"{$lang->patches_nochange}\" />",
                                    array('class' => 'align_center',
                                          'style' => 'white-space: nowrap;'));
         }
@@ -843,7 +843,7 @@ function patches_page()
         else if((int)$row['psize'] === @filesize(MYBB_ROOT.$file) &&
                 (int)$row['pdate'] === @filemtime(MYBB_ROOT.$file))
         {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.gif\" alt=\"{$lang->patches_tick}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/tick.png\" alt=\"{$lang->patches_tick}\" />",
                                    array('class' => 'align_center',
                                          'style' => 'white-space: nowrap;'));
 
@@ -852,14 +852,14 @@ function patches_page()
 
         else if((int)$row['psize'] == 0)
         {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.gif\" alt=\"{$lang->patches_warning}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/warning.png\" alt=\"{$lang->patches_warning}\" />",
                                    array('class' => 'align_center',
                                          'style' => 'white-space: nowrap;'));
         }
 
         else
         {
-            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/cross.gif\" alt=\"{$lang->patches_cross}\" />",
+            $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/cross.png\" alt=\"{$lang->patches_cross}\" />",
                                    array('class' => 'align_center',
                                          'style' => 'white-space: nowrap;'));
         }
@@ -876,7 +876,7 @@ function patches_page()
                                          array('mode' => 'delete',
                                                'patch' => $row['pid'],
                                                'my_post_key' => $mybb->post_code));
-            $delete = " <a href=\"{$deleteurl}\"><img src=\"styles/{$page->style}/images/icons/delete.gif\" alt=\"{$lang->patches_delete}\" title=\"{$lang->patches_delete}\" /></a>";
+            $delete = " <a href=\"{$deleteurl}\"><img src=\"styles/{$page->style}/images/icons/delete.png\" alt=\"{$lang->patches_delete}\" title=\"{$lang->patches_delete}\" /></a>";
         }
 
         $table->construct_cell("<div style=\"padding-left: 40px;\"><a href=\"{$editurl}\">"
@@ -895,13 +895,13 @@ function patches_page()
     $exporturl = $PL->url_append(PATCHES_URL, array('mode' => 'export',
                                                     'patch' => implode(",", $exportids)));
 
-    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/increase.gif\" /> <a href=\"{$importurl}\">{$lang->patches_import}</a> ",
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/increase.png\" /> <a href=\"{$importurl}\">{$lang->patches_import}</a> ",
                            array('class' => 'align_center',
                                  'style' => 'white-space: nowrap;'));
-    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/decrease.gif\" /> <a href=\"{$exporturl}\">{$lang->patches_export}</a>",
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/decrease.png\" /> <a href=\"{$exporturl}\">{$lang->patches_export}</a>",
                            array('class' => 'align_center',
                                  'style' => 'white-space: nowrap;'));
-    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/custom.gif\" /> <a href=\"{$createurl}\">{$lang->patches_new}</a> ",
+    $table->construct_cell("<img src=\"styles/{$page->style}/images/icons/custom.png\" /> <a href=\"{$createurl}\">{$lang->patches_new}</a> ",
                            array('class' => 'align_center'));
 
     $table->construct_row();
@@ -911,16 +911,16 @@ function patches_page()
     // legend
     echo "
 <ul class=\"smalltext\">
-    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/no_change.gif)\" />
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/no_change.png)\" />
         {$lang->patches_legend_nochange}
     </li>
-    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/warning.gif)\" />
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/warning.png)\" />
         {$lang->patches_legend_warning}
     </li>
-    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/tick.gif)\" />
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/tick.png)\" />
         {$lang->patches_legend_tick}
     </li>
-    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/cross.gif)\" />
+    <li style=\"list-style-image: url(styles/{$page->style}/images/icons/cross.png)\" />
         {$lang->patches_legend_cross}
     </li>
 </ul>
