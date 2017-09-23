@@ -92,7 +92,7 @@ function patches_install()
                 $primary = 'INTEGER NOT NULL';
                 break;
 
-            case 'postgres':
+            case 'pgsql':
                 $quote = '"';
                 $primary = 'SERIAL NOT NULL';
                 break;
